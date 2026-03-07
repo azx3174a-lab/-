@@ -15,7 +15,8 @@ LINKS_FILE = "links.txt"
 TIMER_FILE = "timer.txt"
 
 def get_interval():
-    if os.path.path.exists(TIMER_FILE):
+    # تم تصحيح الخطأ هنا (حذف path المكررة)
+    if os.path.exists(TIMER_FILE):
         try:
             with open(TIMER_FILE, "r") as f:
                 return int(f.read().strip())
@@ -27,7 +28,7 @@ def save_interval(minutes):
     with open(TIMER_FILE, "w") as f:
         f.write(str(minutes))
 
-# 3. Flask للسيرفر
+# 3. Flask للسيرفر (عشان Render ما يطفي)
 app = Flask('')
 
 @app.route('/')
@@ -35,6 +36,7 @@ def home():
     return "✅ البوت المراقب يعمل بنجاح!"
 
 def run_flask():
+    # المنفذ 8080 هو اللي يحبه Render
     app.run(host='0.0.0.0', port=8080)
 
 # 4. خيط المراقبة (الرادار)
@@ -107,9 +109,9 @@ def update_timer(message):
 
 # 6. تشغيل كل شيء
 if __name__ == "__main__":
-    # تشغيل Flask في خيط منفصل
+    # تشغيل Flask
     threading.Thread(target=run_flask).start()
-    # تشغيل الرادار في خيط منفصل
+    # تشغيل الرادار
     threading.Thread(target=monitor_threads).start()
     # تشغيل بوت التليجرام
     bot.polling(none_stop=True)
