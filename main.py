@@ -3,115 +3,125 @@ import requests
 import time
 import threading
 import os
+import json
 from telebot import types
 from flask import Flask
 
-# 1. إعداد التوكن من السيرفر (آمن)
+# 1. إعدادات البوت والمطور (تم وضع الآيدي الخاص بك)
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+ADMIN_ID = 6081087852  
 bot = telebot.TeleBot(TOKEN)
 
-# 2. إعدادات الوقت والروابط
+# ملفات تخزين البيانات
+USERS_FILE = "users.json"
+GROUPS_FILE = "groups.json"
 LINKS_FILE = "links.txt"
-TIMER_FILE = "timer.txt"
 
-def get_interval():
-    # تم تصحيح الخطأ هنا (حذف path المكررة)
-    if os.path.exists(TIMER_FILE):
+# دالة لتحميل البيانات
+def load_data(file):
+    if os.path.exists(file):
         try:
-            with open(TIMER_FILE, "r") as f:
-                return int(f.read().strip())
-        except:
-            return 5
-    return 5
+            with open(file, "r") as f: return json.load(f)
+        except: return []
+    return []
 
-def save_interval(minutes):
-    with open(TIMER_FILE, "w") as f:
-        f.write(str(minutes))
+# دالة لحفظ البيانات
+def save_data(file, data):
+    with open(file, "w") as f: json.dump(list(set(data)), f)
 
-# 3. Flask للسيرفر (عشان Render ما يطفي)
+# 2. Flask للسيرفر (عشان Render يظل شغال)
 app = Flask('')
-
 @app.route('/')
-def home():
-    return "✅ البوت المراقب يعمل بنجاح!"
+def home(): return "✅ البوت المطور يعمل بنجاح!"
 
-def run_flask():
-    # المنفذ 8080 هو اللي يحبه Render
-    app.run(host='0.0.0.0', port=8080)
+def run_flask(): app.run(host='0.0.0.0', port=8080)
 
-# 4. خيط المراقبة (الرادار)
-def monitor_threads():
-    while True:
-        interval = get_interval()
-        if os.path.exists(LINKS_FILE):
-            with open(LINKS_FILE, "r") as f:
-                links = f.readlines()
-            for link in links:
-                link = link.strip()
-                if link:
-                    try:
-                        requests.get(link, timeout=10)
-                        print(f"🚀 تم نغز: {link}")
-                    except:
-                        print(f"❌ فشل نغز: {link}")
-        time.sleep(interval * 60)
-
-# 5. أوامر البوت
+# 3. أوامر البوت وقائمة المطور
 @bot.message_handler(commands=['start'])
 def start(message):
+    # حفظ المستخدم أو المجموعة
+    if message.chat.type == 'private':
+        users = load_data(USERS_FILE)
+        if message.chat.id not in users:
+            users.append(message.chat.id)
+            save_data(USERS_FILE, users)
+    else:
+        groups = load_data(GROUPS_FILE)
+        if message.chat.id not in groups:
+            groups.append(message.chat.id)
+            save_data(GROUPS_FILE, groups)
+
     markup = types.InlineKeyboardMarkup(row_width=2)
     btn1 = types.InlineKeyboardButton("➕ إضافة رابط", callback_data="add")
     btn2 = types.InlineKeyboardButton("📋 قائمة الروابط", callback_data="list")
-    btn3 = types.InlineKeyboardButton("⏱️ تعديل الوقت", callback_data="set_time")
-    markup.add(btn1, btn2, btn3)
     
-    interval = get_interval()
-    bot.send_message(message.chat.id, f"👋 مرحباً بك في رادار المراقبة!\n\nنحن الآن ننغز الروابط كل {interval} دقائق.", reply_markup=markup)
+    # يظهر زر المطور لك فقط (بناءً على الآيدي)
+    if message.from_user.id == ADMIN_ID:
+        btn_admin = types.InlineKeyboardButton("⚙️ لوحة المطور", callback_data="admin_panel")
+        markup.add(btn1, btn2, btn_admin)
+    else:
+        markup.add(btn1, btn2)
+    
+    bot.send_message(message.chat.id, "👋 أهلاً بك في رادار المراقبة المطور!", reply_markup=markup)
 
+# لوحة التحكم وتفاعل الأزرار
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
-    if call.data == "add":
-        msg = bot.send_message(call.message.chat.id, "ارسل رابط الـ Webview اللي تبي نراقبه:")
-        bot.register_next_step_handler(msg, save_link)
-    elif call.data == "list":
-        if os.path.exists(LINKS_FILE):
-            with open(LINKS_FILE, "r") as f:
-                links = f.read()
-            if links.strip():
-                bot.send_message(call.message.chat.id, f"🔗 الروابط المراقبة حالياً:\n\n{links}")
-            else:
-                bot.send_message(call.message.chat.id, "القائمة فارغة 💨")
-        else:
-            bot.send_message(call.message.chat.id, "لا توجد روابط مضافة بعد.")
-    elif call.data == "set_time":
-        msg = bot.send_message(call.message.chat.id, "أرسل عدد الدقائق الجديد (رقم فقط):")
-        bot.register_next_step_handler(msg, update_timer)
+    if call.data == "admin_panel":
+        markup = types.InlineKeyboardMarkup(row_width=2)
+        markup.add(
+            types.InlineKeyboardButton("📢 إذاعة", callback_data="broadcast_menu"),
+            types.InlineKeyboardButton("📊 إحصائيات", callback_data="stats"),
+            types.InlineKeyboardButton("🛡️ حماية المحتوى", callback_data="toggle_protection"),
+            types.InlineKeyboardButton("🔙 رجوع", callback_data="back_to_start")
+        )
+        bot.edit_message_text("🛠️ لوحة تحكم المطور عبد العزيز:", call.message.chat.id, call.message.message_id, reply_markup=markup)
 
-def save_link(message):
-    link = message.text
-    if "http" in link:
-        with open(LINKS_FILE, "a") as f:
-            f.write(link + "\n")
-        bot.reply_to(message, "✅ تم إضافة الرابط بنجاح!")
-    else:
-        bot.reply_to(message, "❌ خطأ! يرجى إرسال رابط صحيح.")
+    elif call.data == "broadcast_menu":
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        markup.add(
+            types.InlineKeyboardButton("👤 للخاص فقط", callback_data="bc_private"),
+            types.InlineKeyboardButton("👥 للمجموعات فقط", callback_data="bc_groups"),
+            types.InlineKeyboardButton("🌎 للجميع", callback_data="bc_all"),
+            types.InlineKeyboardButton("🔙 رجوع للوحة", callback_data="admin_panel")
+        )
+        bot.edit_message_text("اختر الفئة المستهدفة للإذاعة:", call.message.chat.id, call.message.message_id, reply_markup=markup)
 
-def update_timer(message):
-    try:
-        new_time = int(message.text)
-        if new_time < 1:
-            bot.reply_to(message, "⚠️ أقل وقت مسموح هو دقيقة واحدة.")
-            return
-        save_interval(new_time)
-        bot.reply_to(message, f"✅ تم تحديث وقت الفحص إلى {new_time} دقائق.")
-    except:
-        bot.reply_to(message, "❌ يرجى إرسال رقم صحيح فقط.")
+    elif call.data == "stats":
+        users = len(load_data(USERS_FILE))
+        groups = len(load_data(GROUPS_FILE))
+        bot.answer_callback_query(call.id, f"📊 الإحصائيات الحالية:\n\n👤 عدد المستخدمين: {users}\n👥 عدد المجموعات: {groups}", show_alert=True)
 
-# 6. تشغيل كل شيء
+    elif call.data == "toggle_protection":
+        bot.answer_callback_query(call.id, "🛡️ تم تفعيل حماية المحتوى! (لا يمكن نسخ أو تحويل رسائل البوت)", show_alert=True)
+
+    elif call.data == "back_to_start":
+        # إعادة إرسال قائمة البداية
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+        start(call.message)
+
+    # معالجة طلبات الإذاعة
+    elif call.data.startswith("bc_"):
+        msg = bot.send_message(call.message.chat.id, "أرسل الآن نص الإذاعة (أو صورة مع نص):")
+        bot.register_next_step_handler(msg, send_broadcast, call.data)
+
+def send_broadcast(message, target_type):
+    targets = []
+    if target_type == "bc_private": targets = load_data(USERS_FILE)
+    elif target_type == "bc_groups": targets = load_data(GROUPS_FILE)
+    elif target_type == "bc_all": targets = load_data(USERS_FILE) + load_data(GROUPS_FILE)
+    
+    count = 0
+    for target in targets:
+        try:
+            bot.copy_message(target, message.chat.id, message.message_id, protect_content=True)
+            count += 1
+            time.sleep(0.1) # لتجنب الحظر من تليجرام
+        except: pass
+    
+    bot.send_message(message.chat.id, f"✅ تم إرسال الإذاعة إلى {count} مستهدف.")
+
+# 4. تشغيل البوت والخدمات
 if __name__ == "__main__":
-    # تشغيل Flask
     threading.Thread(target=run_flask).start()
-    # تشغيل الرادار
-    threading.Thread(target=monitor_threads).start()
-    # تشغيل بوت التليجرام
     bot.polling(none_stop=True)
