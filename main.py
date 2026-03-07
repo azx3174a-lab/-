@@ -18,7 +18,8 @@ def keep_alive():
 
 # قائمة بروابط بوتاتك اللي تبيها ما تنام
 URLS = [
-    "https://your-bot.replit.app" 
+    "https://mrkz-lqyd--98yr4c7qwt.replit.app
+" 
 ]
 
 def ping_bots():
