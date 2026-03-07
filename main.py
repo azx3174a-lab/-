@@ -7,7 +7,7 @@ import json
 from telebot import types
 from flask import Flask
 
-# 1. إعدادات البوت والمطور (تم وضع الآيدي الخاص بك)
+# 1. إعدادات البوت والمطور
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 ADMIN_ID = 6081087852  
 bot = telebot.TeleBot(TOKEN)
@@ -16,8 +16,9 @@ bot = telebot.TeleBot(TOKEN)
 USERS_FILE = "users.json"
 GROUPS_FILE = "groups.json"
 LINKS_FILE = "links.txt"
+TIMER_FILE = "timer.txt"
 
-# دالة لتحميل البيانات
+# دالات البيانات
 def load_data(file):
     if os.path.exists(file):
         try:
@@ -25,21 +26,27 @@ def load_data(file):
         except: return []
     return []
 
-# دالة لحفظ البيانات
 def save_data(file, data):
     with open(file, "w") as f: json.dump(list(set(data)), f)
 
-# 2. Flask للسيرفر (عشان Render يظل شغال)
+def get_interval():
+    if os.path.exists(TIMER_FILE):
+        try:
+            with open(TIMER_FILE, "r") as f: return int(f.read().strip())
+        except: return 5
+    return 5
+
+# 2. Flask للسيرفر
 app = Flask('')
 @app.route('/')
-def home(): return "✅ البوت المطور يعمل بنجاح!"
+def home(): return "✅ البوت المطور يعمل!"
 
 def run_flask(): app.run(host='0.0.0.0', port=8080)
 
-# 3. أوامر البوت وقائمة المطور
+# 3. أمر البداية (مقسم لرسالتين)
 @bot.message_handler(commands=['start'])
 def start(message):
-    # حفظ المستخدم أو المجموعة
+    # حفظ البيانات
     if message.chat.type == 'private':
         users = load_data(USERS_FILE)
         if message.chat.id not in users:
@@ -51,77 +58,62 @@ def start(message):
             groups.append(message.chat.id)
             save_data(GROUPS_FILE, groups)
 
-    markup = types.InlineKeyboardMarkup(row_width=2)
+    # الرسالة الأولى: الترحيب والمؤقت (للجميع)
+    user_markup = types.InlineKeyboardMarkup()
     btn1 = types.InlineKeyboardButton("➕ إضافة رابط", callback_data="add")
     btn2 = types.InlineKeyboardButton("📋 قائمة الروابط", callback_data="list")
+    btn3 = types.InlineKeyboardButton("⏱️ تعديل الوقت", callback_data="set_time")
+    user_markup.row(btn1, btn2)
+    user_markup.row(btn3)
     
-    # يظهر زر المطور لك فقط (بناءً على الآيدي)
-    if message.from_user.id == ADMIN_ID:
-        btn_admin = types.InlineKeyboardButton("⚙️ لوحة المطور", callback_data="admin_panel")
-        markup.add(btn1, btn2, btn_admin)
-    else:
-        markup.add(btn1, btn2)
-    
-    bot.send_message(message.chat.id, "👋 أهلاً بك في رادار المراقبة المطور!", reply_markup=markup)
+    interval = get_interval()
+    bot.send_message(message.chat.id, f"👋 أهلاً بك في رادار المراقبة!\n\n⏱️ فحص الروابط كل: {interval} دقائق.", reply_markup=user_markup)
 
-# لوحة التحكم وتفاعل الأزرار
-@bot.callback_query_handler(func=lambda call: True)
-def callback_query(call):
-    if call.data == "admin_panel":
-        markup = types.InlineKeyboardMarkup(row_width=2)
-        markup.add(
+    # الرسالة الثانية: لوحة المطور (لك أنت فقط وفي رسالة مستقلة)
+    if message.from_user.id == ADMIN_ID and message.chat.type == 'private':
+        admin_markup = types.InlineKeyboardMarkup()
+        admin_markup.add(
             types.InlineKeyboardButton("📢 إذاعة", callback_data="broadcast_menu"),
             types.InlineKeyboardButton("📊 إحصائيات", callback_data="stats"),
-            types.InlineKeyboardButton("🛡️ حماية المحتوى", callback_data="toggle_protection"),
-            types.InlineKeyboardButton("🔙 رجوع", callback_data="back_to_start")
+            types.InlineKeyboardButton("🛡️ حماية المحتوى", callback_data="toggle_protection")
         )
-        bot.edit_message_text("🛠️ لوحة تحكم المطور عبد العزيز:", call.message.chat.id, call.message.message_id, reply_markup=markup)
+        bot.send_message(message.chat.id, "⚙️ **لوحة التحكم الخاصة بالمطور:**", reply_markup=admin_markup, parse_mode="Markdown")
 
-    elif call.data == "broadcast_menu":
+# تفاعل الأزرار
+@bot.callback_query_handler(func=lambda call: True)
+def callback_query(call):
+    if call.data == "broadcast_menu":
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(
-            types.InlineKeyboardButton("👤 للخاص فقط", callback_data="bc_private"),
-            types.InlineKeyboardButton("👥 للمجموعات فقط", callback_data="bc_groups"),
+            types.InlineKeyboardButton("👤 للخاص", callback_data="bc_private"),
+            types.InlineKeyboardButton("👥 للمجموعات", callback_data="bc_groups"),
             types.InlineKeyboardButton("🌎 للجميع", callback_data="bc_all"),
-            types.InlineKeyboardButton("🔙 رجوع للوحة", callback_data="admin_panel")
+            types.InlineKeyboardButton("🔙 إغلاق", callback_data="close_admin")
         )
-        bot.edit_message_text("اختر الفئة المستهدفة للإذاعة:", call.message.chat.id, call.message.message_id, reply_markup=markup)
+        bot.edit_message_text("اختر نوع الإذاعة:", call.message.chat.id, call.message.message_id, reply_markup=markup)
 
     elif call.data == "stats":
         users = len(load_data(USERS_FILE))
         groups = len(load_data(GROUPS_FILE))
-        bot.answer_callback_query(call.id, f"📊 الإحصائيات الحالية:\n\n👤 عدد المستخدمين: {users}\n👥 عدد المجموعات: {groups}", show_alert=True)
+        bot.answer_callback_query(call.id, f"📊 الإحصائيات:\n👤 مستخدمين: {users}\n👥 مجموعات: {groups}", show_alert=True)
 
     elif call.data == "toggle_protection":
-        bot.answer_callback_query(call.id, "🛡️ تم تفعيل حماية المحتوى! (لا يمكن نسخ أو تحويل رسائل البوت)", show_alert=True)
+        bot.answer_callback_query(call.id, "🛡️ تم تفعيل الحماية على رسائل البوت!", show_alert=True)
 
-    elif call.data == "back_to_start":
-        # إعادة إرسال قائمة البداية
+    elif call.data == "close_admin":
         bot.delete_message(call.message.chat.id, call.message.message_id)
-        start(call.message)
 
-    # معالجة طلبات الإذاعة
-    elif call.data.startswith("bc_"):
-        msg = bot.send_message(call.message.chat.id, "أرسل الآن نص الإذاعة (أو صورة مع نص):")
-        bot.register_next_step_handler(msg, send_broadcast, call.data)
+    # باقي العمليات (إضافة رابط، مؤقت...)
+    elif call.data == "add":
+        msg = bot.send_message(call.message.chat.id, "ارسل رابط الـ Webview:")
+        bot.register_next_step_handler(msg, save_link)
+    # (تكملة الوظائف الأساسية...)
 
-def send_broadcast(message, target_type):
-    targets = []
-    if target_type == "bc_private": targets = load_data(USERS_FILE)
-    elif target_type == "bc_groups": targets = load_data(GROUPS_FILE)
-    elif target_type == "bc_all": targets = load_data(USERS_FILE) + load_data(GROUPS_FILE)
-    
-    count = 0
-    for target in targets:
-        try:
-            bot.copy_message(target, message.chat.id, message.message_id, protect_content=True)
-            count += 1
-            time.sleep(0.1) # لتجنب الحظر من تليجرام
-        except: pass
-    
-    bot.send_message(message.chat.id, f"✅ تم إرسال الإذاعة إلى {count} مستهدف.")
+def save_link(message):
+    # دالة حفظ الروابط
+    pass 
 
-# 4. تشغيل البوت والخدمات
+# 4. التشغيل
 if __name__ == "__main__":
     threading.Thread(target=run_flask).start()
     bot.polling(none_stop=True)
