@@ -1,52 +1,47 @@
 import telebot
 import os
-import google.generativeai as genai
 from flask import Flask
 import threading
 import time
 import requests
 
-# 1. إعدادات المفاتيح من Render
+# 1. إعدادات البوت الأساسية
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-GEMINI_KEY = os.getenv("GEMINI_API_KEY")
-RENDER_URL = "https://commander-bot-dxgc.onrender.com" # رابط بوتك في ريندر
-
-# إعداد محرك Gemini
-genai.configure(api_key=GEMINI_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
-
 bot = telebot.TeleBot(TOKEN)
+OWNER_ID = 123456789  # 💡 ضع الأيدي الخاص بك هنا
+RENDER_URL = "https://commander-bot-dxgc.onrender.com"
+
+# قائمة المشرفين (تخزن في الذاكرة مؤقتاً)
+admins = {}
+
 app = Flask('')
 
 @app.route('/')
-def home(): return "🤖 بوت القائد الذكي يعمل الآن!"
+def home(): return "✅ بوت القائد يعمل بنجاح!"
 
-# 2. نظام النغز الذاتي (كل 5 دقائق)
+# 2. نظام النغز الذاتي (إبقاء البوت حياً)
 def self_ping():
     while True:
         try:
             requests.get(RENDER_URL, timeout=10)
-            print("🚀 تم نغز الذكاء الاصطناعي بنجاح")
+            print("🚀 تم نغز السيرفر بنجاح")
         except: pass
         time.sleep(5 * 60)
 
-# 3. استقبال السوالف والرد عليها
-@bot.message_handler(func=lambda message: True)
-def ai_chat(message):
-    try:
-        # إظهار حالة "يكتب الآن..."
-        bot.send_chat_action(message.chat.id, 'typing')
-        
-        # إرسال الرسالة لـ Gemini
-        response = model.generate_content(message.text)
-        
-        # الرد بالذكاء الاصطناعي
-        bot.reply_to(message, response.text, parse_mode="Markdown")
-    except Exception as e:
-        bot.reply_to(message, "❌ حصل خطأ في الاتصال بالذكاء الاصطناعي، تأكد من المفتاح في ريندر.")
+# 3. أوامر لوحة التحكم
+@bot.message_handler(commands=['start', 'panel'])
+def send_panel(message):
+    if message.from_user.id == OWNER_ID or message.from_user.id in admins:
+        markup = telebot.types.InlineKeyboardMarkup()
+        markup.add(telebot.types.InlineKeyboardButton("📊 الإحصائيات", callback_data="stats"))
+        markup.add(telebot.types.InlineKeyboardButton("📢 إذاعة", callback_data="broadcast"))
+        bot.reply_to(message, "🛠️ أهلاً بك في لوحة تحكم القائد:", reply_markup=markup)
+    else:
+        bot.reply_to(message, "❌ عذراً، هذا البوت خاص بالمطور فقط.")
 
-# 4. التشغيل
+# 4. تشغيل السيرفر والبوت
 if __name__ == "__main__":
     threading.Thread(target=lambda: app.run(host='0.0.0.0', port=8080)).start()
     threading.Thread(target=self_ping, daemon=True).start()
+    print("🤖 بوت القائد متصل الآن...")
     bot.polling(none_stop=True)
