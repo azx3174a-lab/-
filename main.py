@@ -8,7 +8,7 @@ import requests
 # 1. إعدادات البوت الأساسية
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 bot = telebot.TeleBot(TOKEN)
-OWNER_ID = 123456789  # 💡 ضع الأيدي الخاص بك هنا
+OWNER_ID = 6081087852  # 💡 ضع الأيدي الخاص بك هنا
 RENDER_URL = "https://commander-bot-dxgc.onrender.com"
 
 # قائمة المشرفين (تخزن في الذاكرة مؤقتاً)
