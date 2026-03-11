@@ -17,8 +17,7 @@ def init_db():
     cur = conn.cursor()
     
     # السطر التالي يمسح الجدول القديم ليبنيه من جديد بالخانات الجديدة (صور، وصف)
-    # ملاحظة: بعد ما يشتغل الموقع، يفضل حذف السطر التالي لكي لا يمسح منتجاتك مستقبلاً
-    cur.execute("DROP TABLE IF EXISTS products CASCADE") 
+    # ملاحظة: بعد ما يشتغل الموقع، يفضل حذف السطر التالي لكي لا يمسح منتجاتك مستقبلاً 
     
     cur.execute('''
         CREATE TABLE IF NOT EXISTS products (
