@@ -8,7 +8,7 @@ app = Flask(__name__)
 app.secret_key = "ein_store_2026_stable"
 
 # !!! ضع رقم واتسابك هنا !!!
-MY_WHATSAPP = "966550963174" 
+MY_WHATSAPP = "966550963174"
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
