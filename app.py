@@ -5,7 +5,7 @@ from psycopg2.extras import DictCursor
 import base64
 
 app = Flask(__name__)
-app.secret_key = "eyin_admin_power_v17"
+app.secret_key = "eyin_description_v18"
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
@@ -19,6 +19,7 @@ def init_db():
     cur.execute("INSERT INTO settings (key, value) VALUES ('logo', '') ON CONFLICT (key) DO NOTHING")
     cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS whatsapp TEXT")
     cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS delete_code TEXT")
+    cur.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS description TEXT")
     conn.commit()
     cur.close()
     conn.close()
@@ -72,6 +73,7 @@ def index():
             .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; max-width: 1100px; margin: 40px auto; }
             .card { background: var(--card); padding: 20px; border-radius: 24px; border: 1px solid var(--border); }
             .card img { width: 100%; height: 180px; object-fit: contain; border-radius: 18px; margin-bottom: 15px; }
+            .product-desc { color: var(--muted); font-size: 0.9rem; line-height: 1.4; margin-bottom: 15px; min-height: 40px; }
             .btn-buy { background: #25d366; color: white; border: none; padding: 10px; border-radius: 10px; width: 100%; text-decoration: none; display: block; text-align: center; font-weight: bold; margin-bottom: 15px; }
             .delete-box { border-top: 1px solid var(--border); padding-top: 10px; display: flex; gap: 5px; }
             .delete-input { font-size: 12px; padding: 5px; border: 1px solid #ef4444; border-radius: 5px; width: 100%; }
@@ -105,8 +107,11 @@ def index():
             {% for p in products %}
             <div class="card">
                 <img src="{{ p['image_url'] or 'https://via.placeholder.com/150' }}">
-                <h3>{{ p['name'] }}</h3>
-                <div style="font-size: 20px; color: var(--primary); font-weight: bold; margin-bottom: 15px;">{{ p['price'] }} ريال</div>
+                <h3 style="margin: 0;">{{ p['name'] }}</h3>
+                <div style="font-size: 20px; color: var(--primary); font-weight: bold; margin: 10px 0;">{{ p['price'] }} ريال</div>
+                
+                <div class="product-desc">{{ p['description'] or 'لا يوجد وصف لهذا المنتج' }}</div>
+                
                 <a href="https://wa.me/{{ p['whatsapp'] }}" class="btn-buy" target="_blank">واتساب البائع</a>
                 <div class="delete-box">
                     <form method="post" style="display:flex; gap:5px; width:100%;">
@@ -126,6 +131,7 @@ def index():
                 <form action="/add_public" method="post" enctype="multipart/form-data">
                     <input type="text" name="name" placeholder="ماذا تبيع؟" required>
                     <input type="number" name="price" placeholder="السعر" required>
+                    <textarea name="description" placeholder="اكتب وصفاً مختصراً للمنتج (المقاس، الحالة، إلخ...)" rows="3"></textarea>
                     <input type="text" name="whatsapp" placeholder="رقم واتسابك (966...)" required>
                     <input type="password" name="delete_code" placeholder="كود سري للحذف" required>
                     <input type="file" name="image_file" required>
@@ -153,7 +159,7 @@ def index():
 
 @app.route('/add_public', methods=['POST'])
 def add_public():
-    name, price, whatsapp, delete_code = request.form.get('name'), request.form.get('price'), request.form.get('whatsapp'), request.form.get('delete_code')
+    name, price, whatsapp, delete_code, description = request.form.get('name'), request.form.get('price'), request.form.get('whatsapp'), request.form.get('delete_code'), request.form.get('description')
     image_data = ""
     if 'image_file' in request.files:
         file = request.files['image_file']
@@ -162,7 +168,7 @@ def add_public():
             image_data = f"data:{file.content_type};base64,{encoded_string}"
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("INSERT INTO products (name, price, image_url, whatsapp, delete_code) VALUES (%s, %s, %s, %s, %s)", (name, price, image_data, whatsapp, delete_code))
+    cur.execute("INSERT INTO products (name, price, image_url, whatsapp, delete_code, description) VALUES (%s, %s, %s, %s, %s, %s)", (name, price, image_data, whatsapp, delete_code, description))
     conn.commit()
     cur.close()
     conn.close()
@@ -203,7 +209,7 @@ def admin():
 
     return render_template_string('''
     <div dir="rtl" style="font-family: sans-serif; padding: 20px; max-width: 900px; margin: auto;">
-        <h2 style="text-align:center;">🛠️ لوحة الإدارة الكاملة</h2>
+        <h2 style="text-align:center;">🛠️ لوحة الإدارة</h2>
         <div style="background: #eee; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
             <h3>🖼️ شعار المنصة</h3>
             <form method="post" enctype="multipart/form-data">
@@ -212,19 +218,19 @@ def admin():
                 <button type="submit">تحديث الشعار</button>
             </form>
         </div>
-        <h3>📦 التحكم في المنتجات (حذف مباشر بدون كود)</h3>
+        <h3>📦 التحكم في المنتجات</h3>
         <table border="1" style="width:100%; border-collapse: collapse; background: white;">
-            <tr style="background:#f4f4f4;"><th>المنتج</th><th>السعر</th><th>الواتساب</th><th>الإجراء</th></tr>
+            <tr style="background:#f4f4f4;"><th>المنتج</th><th>الوصف</th><th>السعر</th><th>الإجراء</th></tr>
             {% for p in products %}
             <tr>
                 <td style="padding:10px;">{{ p['name'] }}</td>
+                <td style="padding:10px; font-size: 0.8rem;">{{ p['description'] }}</td>
                 <td style="text-align:center;">{{ p['price'] }}</td>
-                <td style="text-align:center;">{{ p['whatsapp'] }}</td>
                 <td style="text-align:center;">
                     <form method="post">
                         <input type="hidden" name="id" value="{{ p['id'] }}">
                         <input type="hidden" name="action" value="admin_delete">
-                        <button type="submit" style="background:red; color:white; border:none; padding:5px 10px; border-radius:5px; cursor:pointer;" onclick="return confirm('حذف هذا المنتج نهائياً؟')">حذف نهائي 🗑️</button>
+                        <button type="submit" style="background:red; color:white; border:none; padding:5px 10px; border-radius:5px; cursor:pointer;" onclick="return confirm('حذف؟')">حذف 🗑️</button>
                     </form>
                 </td>
             </tr>
