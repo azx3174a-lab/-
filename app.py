@@ -5,7 +5,7 @@ from psycopg2.extras import DictCursor
 import base64
 
 app = Flask(__name__)
-app.secret_key = "eyin_secret_key_v12"
+app.secret_key = "eyin_secret_key_v13"
 
 # !!! تأكد من وضع رقم واتسابك الصحيح هنا !!!
 MY_WHATSAPP = "966550963174" 
@@ -48,13 +48,21 @@ def index():
         <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>متجر عين</title>
         <style>
-            :root { --bg: #f8fafc; --card: #ffffff; --text: #1e293b; --muted: #64748b; --primary: #4f46e5; --border: #e2e8f0; --dot: #4f46e5; }
-            [data-theme="dark"] { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --muted: #94a3b8; --primary: #818cf8; --border: #334155; --dot: #818cf8; }
+            :root { --bg: #f8fafc; --card: #ffffff; --text: #1e293b; --muted: #64748b; --primary: #4f46e5; --border: #e2e8f0; }
+            [data-theme="dark"] { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --muted: #94a3b8; --primary: #818cf8; --border: #334155; }
             body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; transition: 0.3s; }
             .header { display: flex; justify-content: space-between; align-items: center; max-width: 1100px; margin: auto; }
-            .logo-section { display: flex; align-items: center; gap: 10px; }
-            .logo-img { max-height: 50px; border-radius: 8px; }
-            .status-dot { width: 8px; height: 8px; background: var(--dot); border-radius: 50%; display: inline-block; }
+            .logo-section { display: flex; align-items: center; gap: 12px; }
+            
+            /* --- تصميم الشعار الدائري --- */
+            .logo-img { 
+                width: 50px;       /* عرض ثابت */
+                height: 50px;      /* ارتفاع ثابت متساوي مع العرض */
+                object-fit: cover; /* يضمن عدم تمطط الصورة */
+                border-radius: 50%;/* يجعل الصورة دائرية تماماً */
+                border: 2px solid var(--primary); /* إطار بلون المتجر */
+            }
+            
             .theme-btn { background: var(--card); border: 1px solid var(--border); cursor: pointer; padding: 10px; border-radius: 50%; font-size: 20px; color: var(--text); }
             .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; max-width: 1100px; margin: 40px auto; }
             .card { background: var(--card); padding: 25px; border-radius: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); border: 1px solid var(--border); }
@@ -67,8 +75,8 @@ def index():
         <div class="header">
             <div class="logo-section">
                 {% if logo_url %}<img src="{{ logo_url }}" class="logo-img">{% endif %}
-                <h1 style="margin:0; font-size: 1.5rem;">متجر عيـن <span class="status-dot"></span></h1>
-            </div>
+                <h1 style="margin:0; font-size: 1.5rem;">متجر عيـن</h1>
+                </div>
             <button class="theme-btn" onclick="toggleTheme()" id="theme-icon">🌙</button>
         </div>
         <div class="grid">
@@ -156,7 +164,7 @@ def admin():
         <h2>⚙️ لوحة التحكم السرية</h2>
         
         <div style="background: #f0f0f0; padding: 15px; border-radius: 10px; margin-bottom: 30px;">
-            <h3>🖼️ تحديث شعار المتجر</h3>
+            <h3>🖼️ تحديث شعار المتجر (سيكون دائرياً)</h3>
             <form method="post" enctype="multipart/form-data">
                 <input type="hidden" name="action" value="update_logo">
                 <input type="file" name="logo_file" required>
@@ -171,9 +179,9 @@ def admin():
                 <form method="post" enctype="multipart/form-data">
                     <input type="hidden" name="id" value="{{ p['id'] }}">
                     <input type="hidden" name="existing_image" value="{{ p['image_url'] }}">
-                    <td pdding="10"><input type="text" name="name" value="{{ p['name'] }}" style="width:100px;"></td>
+                    <td padding="10"><input type="text" name="name" value="{{ p['name'] }}" style="width:100px;"></td>
                     <td><input type="number" name="price" value="{{ p['price'] }}" style="width:60px;"></td>
-                    <td><img src="{{ p['image_url'] }}" width="40"></td>
+                    <td><img src="{{ p['image_url'] }}" width="40" style="border-radius: 5px;"></td>
                     <td>
                         <button type="submit" name="action" value="update">حفظ</button>
                         <button type="submit" name="action" value="delete" style="color:red;">حذف</button>
