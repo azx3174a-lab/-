@@ -5,7 +5,7 @@ from psycopg2.extras import DictCursor
 import base64
 
 app = Flask(__name__)
-app.secret_key = "eyin_secret_key_v10"
+app.secret_key = "eyin_secret_key_v11"
 
 # !!! رقم واتسابك !!!
 MY_WHATSAPP = "966550963174" 
@@ -15,7 +15,7 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL, sslmode='require')
 
-# --- الصفحة الرئيسية (بدون رابط إدارة) ---
+# --- الصفحة الرئيسية (تم حذف العربة من العنوان) ---
 @app.route('/')
 def index():
     conn = get_db_connection()
@@ -46,7 +46,7 @@ def index():
     </head>
     <body>
         <div class="header">
-            <h1 style="margin:0;"> متجر عيـن</h1>
+            <h1 style="margin:0;">متجر عيـن</h1>
             <button class="theme-btn" onclick="toggleTheme()" id="theme-icon">🌙</button>
         </div>
         <div class="grid">
@@ -77,7 +77,7 @@ def index():
     '''
     return render_template_string(html, products=products, whatsapp=MY_WHATSAPP)
 
-# --- رابط لوحة التحكم السري (تغير من admin إلى eyin-control) ---
+# --- لوحة التحكم السرية ---
 @app.route('/eyin-control', methods=['GET', 'POST'])
 def admin():
     if request.method == 'POST':
@@ -153,11 +153,6 @@ def admin():
         <br><a href="/">الخروج للمتجر</a>
     </div>
     ''', products=products)
-
-@app.route('/logout')
-def logout():
-    session.pop('logged_in', None)
-    return redirect(url_for('index'))
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10000)
