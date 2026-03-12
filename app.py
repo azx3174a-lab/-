@@ -46,7 +46,7 @@ def index():
     </head>
     <body>
         <div class="header">
-            <h1 style="margin:0;">🛒 متجر عيـن</h1>
+            <h1 style="margin:0;"> متجر عيـن</h1>
             <button class="theme-btn" onclick="toggleTheme()" id="theme-icon">🌙</button>
         </div>
         <div class="grid">
