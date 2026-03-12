@@ -5,9 +5,9 @@ from psycopg2.extras import DictCursor
 import base64
 
 app = Flask(__name__)
-app.secret_key = "ein_store_2026_final_v4"
+app.secret_key = "ein_store_2026_stable"
 
-# ضع رقم واتسابك هنا (بدون + وبدون أصفار في البداية، مثلاً 9665xxxxxxxx)
+# !!! ضع رقم واتسابك هنا !!!
 MY_WHATSAPP = "966550963174" 
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
@@ -18,6 +18,7 @@ def get_db_connection():
 def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
+    # إنشاء الجدول إذا لم يكن موجوداً (بدون مسحه)
     cur.execute('''
         CREATE TABLE IF NOT EXISTS products (
             id SERIAL PRIMARY KEY,
@@ -51,7 +52,7 @@ def index():
         <style>
             body { font-family: 'Segoe UI', sans-serif; background: #f8fafc; margin: 0; padding: 20px; text-align: center; }
             .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; max-width: 1100px; margin: 40px auto; }
-            .card { background: white; padding: 25px; border-radius: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+            .card { background: white; padding: 25px; border-radius: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
             .card img { width: 110px; height: 110px; object-fit: contain; border-radius: 18px; }
             .price { font-size: 26px; color: #4f46e5; font-weight: bold; margin: 15px 0; }
             .btn-buy { background: #25d366; color: white; border: none; padding: 12px; border-radius: 12px; width: 100%; cursor: pointer; font-size: 1.1em; font-weight: bold; text-decoration: none; display: block; }
@@ -64,13 +65,13 @@ def index():
             <div class="card">
                 <img src="{{ p['image_url'] or 'https://via.placeholder.com/150' }}">
                 <h3>{{ p['name'] }}</h3>
-                <p style="color: #64748b; font-size: 0.9em; min-height: 40px;">{{ p['description'] }}</p>
+                <p style="color: #64748b; font-size: 0.9em; min-height: 40px;">{{ p['description'] or 'لا يوجد وصف' }}</p>
                 <div class="price">{{ p['price'] }} ريال</div>
                 <a href="https://wa.me/{{ whatsapp }}?text=أهلاً متجر عين، أرغب في شراء: {{ p['name'] }}" class="btn-buy" target="_blank">شراء عبر واتساب</a>
             </div>
             {% endfor %}
         </div>
-        <a href="/admin" style="color: #94a3b8; text-decoration: none; font-size: 0.8em;">⚙️ الإدارة</a>
+        <a href="/admin" style="color: #94a3b8; text-decoration: none; font-size: 0.8em;">⚙️ لوحة الإدارة</a>
     </body>
     </html>
     '''
@@ -87,8 +88,7 @@ def admin():
             action = request.form.get('action')
             
             if action == 'delete':
-                product_id = request.form.get('id')
-                cur.execute("DELETE FROM products WHERE id = %s", (product_id,))
+                cur.execute("DELETE FROM products WHERE id = %s", (request.form.get('id'),))
             elif action == 'update':
                 image_data = request.form.get('existing_image')
                 if 'image_file' in request.files:
@@ -125,26 +125,39 @@ def admin():
 
     return render_template_string('''
     <div dir="rtl" style="font-family: sans-serif; padding: 20px;">
-        <h2>⚙️ إدارة المنتجات</h2>
-        <table border="1" style="width:100%; border-collapse: collapse;">
-            <tr style="background:#eee;"><th>المنتج</th><th>السعر</th><th>الوصف</th><th>إجراء</th></tr>
+        <h2>⚙️ إدارة المتجر</h2>
+        <table border="1" style="width:100%; border-collapse: collapse; margin-bottom: 20px;">
+            <tr style="background:#eee;"><th>المنتج</th><th>السعر</th><th>الوصف</th><th>الصورة</th><th>إجراء</th></tr>
             {% for p in products %}
             <tr>
                 <form method="post" enctype="multipart/form-data">
                     <input type="hidden" name="id" value="{{ p['id'] }}">
                     <input type="hidden" name="existing_image" value="{{ p['image_url'] }}">
-                    <td><input type="text" name="name" value="{{ p['name'] }}"></td>
+                    <td><input type="text" name="name" value="{{ p['name'] }}" style="width:100px;"></td>
                     <td><input type="number" name="price" value="{{ p['price'] }}" style="width:50px;"></td>
-                    <td><input type="text" name="description" value="{{ p['description'] }}"></td>
+                    <td><textarea name="description" rows="2">{{ p['description'] }}</textarea></td>
+                    <td><img src="{{ p['image_url'] }}" width="40"><br><input type="file" name="image_file" style="width:100px; font-size:10px;"></td>
                     <td>
                         <button type="submit" name="action" value="update" style="background:green; color:white;">حفظ</button>
-                        <button type="submit" name="action" value="delete" style="background:red; color:white;" onclick="return confirm('هل أنت متأكد من حذف المنتج؟')">حذف</button>
+                        <button type="submit" name="action" value="delete" style="background:red; color:white;">حذف</button>
                     </td>
                 </form>
             </tr>
             {% endfor %}
         </table>
-        <br><a href="/">العودة للمتجر</a> | <a href="/logout">خروج</a>
+        
+        <div style="background:#f1f5f9; padding:20px; border-radius:10px;">
+            <h3>➕ إضافة منتج جديد</h3>
+            <form method="post" enctype="multipart/form-data">
+                <input type="hidden" name="action" value="add">
+                الاسم: <input type="text" name="name" required>
+                السعر: <input type="number" name="price" required style="width:60px;">
+                الوصف: <input type="text" name="description">
+                الصورة: <input type="file" name="image_file" accept="image/*" required>
+                <button type="submit">إضافة</button>
+            </form>
+        </div>
+        <br><a href="/">العودة للمتجر</a>
     </div>
     ''', products=products)
 
