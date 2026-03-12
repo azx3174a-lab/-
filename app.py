@@ -3,7 +3,10 @@ import os, psycopg2, base64, random
 from psycopg2.extras import DictCursor
 
 app = Flask(__name__)
-app.secret_key = "eyin_otp_visible_v23"
+app.secret_key = "eyin_whatsapp_auth_v24"
+
+# !!! ضع رقم واتسابك هنا لاستقبال طلبات الأكواد !!!
+ADMIN_WHATSAPP = "966550963174" 
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
@@ -23,29 +26,24 @@ init_db()
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        # أخذ الرقم وإضافة 966 تلقائياً
         phone_input = request.form.get('phone')
         full_phone = "966" + phone_input
         password = request.form.get('password')
-        
-        # توليد كود التحقق
         otp_code = str(random.randint(1000, 9999))
         
-        # تخزين في الجلسة
         session['temp_user'] = {'phone': full_phone, 'password': password, 'otp': otp_code}
-        
         return redirect(url_for('verify_otp'))
         
     return render_template_string('''
         <div dir="rtl" style="font-family:sans-serif; text-align:center; padding:50px;">
-            <h2 style="color:#1e293b;">إنشاء حساب جديد بالرقم</h2>
+            <h2 style="color:#1e293b;">إنشاء حساب جديد</h2>
             <form method="post" style="display:inline-block; width:90%; max-width:350px;">
                 <div style="display:flex; align-items:center; background:#f1f5f9; border-radius:12px; padding:5px; margin-bottom:15px; border:1px solid #e2e8f0;">
-                    <span style="padding:10px; font-weight:bold; color:#475569;">966+</span>
+                    <span style="padding:10px; font-weight:bold;">966+</span>
                     <input type="number" name="phone" placeholder="5xxxxxxxx" required style="flex-grow:1; border:none; background:none; padding:10px; outline:none; font-size:16px;">
                 </div>
                 <input type="password" name="password" placeholder="كلمة المرور" required style="width:100%; padding:15px; border-radius:12px; border:1px solid #e2e8f0; margin-bottom:20px; box-sizing:border-box;">
-                <button type="submit" style="width:100%; padding:15px; background:#22c55e; color:white; border:none; border-radius:12px; font-weight:bold; cursor:pointer; font-size:16px;">تسجيل وإرسال كود</button>
+                <button type="submit" style="width:100%; padding:15px; background:#4f46e5; color:white; border:none; border-radius:12px; font-weight:bold; cursor:pointer;">التالي: خطوة التحقق</button>
             </form>
         </div>
     ''')
@@ -54,41 +52,45 @@ def register():
 def verify_otp():
     if 'temp_user' not in session: return redirect(url_for('register'))
     
-    # جلب الكود من الجلسة لعرضه للمستخدم (للتجربة فقط)
-    current_otp = session['temp_user']['otp']
-    
+    temp = session['temp_user']
+    # رابط الواتساب لإرسال طلب الكود للمدير
+    wa_msg = f"أرغب بتفعيل حسابي في متجر عين.\nرقم الجوال: {temp['phone']}\nكود التحقق الخاص بي: {temp['otp']}"
+    wa_link = f"https://wa.me/{ADMIN_WHATSAPP}?text={wa_msg}"
+
     if request.method == 'POST':
         user_otp = request.form.get('otp')
-        temp = session['temp_user']
         if user_otp == temp['otp']:
             conn = get_db_connection(); cur = conn.cursor()
             try:
                 cur.execute("INSERT INTO users (phone, password) VALUES (%s, %s)", (temp['phone'], temp['password']))
                 conn.commit()
-                flash('✅ تم تفعيل الحساب بنجاح!', 'success')
+                flash('✅ تم تفعيل حسابك بنجاح!', 'success')
                 session.pop('temp_user')
                 return redirect(url_for('login'))
             except:
-                flash('❌ هذا الرقم مسجل بالفعل', 'error')
-                return redirect(url_for('register'))
+                flash('❌ الرقم مسجل مسبقاً', 'error'); return redirect(url_for('register'))
             finally: cur.close(); conn.close()
         else:
-            flash('❌ كود التحقق خطأ', 'error')
+            flash('❌ كود التحقق غير صحيح', 'error')
 
     return render_template_string(f'''
-        <div dir="rtl" style="font-family:sans-serif; text-align:center; padding:50px;">
-            <div style="background:#fff9c4; padding:10px; border-radius:10px; margin-bottom:20px; display:inline-block; border:1px solid #fbc02d;">
-                ⚠️ <b>وضع التجربة:</b> كود التحقق المرسل لجوالك هو: <span style="font-size:20px; color:red;">{current_otp}</span>
-            </div>
-            <h2>أدخل كود التحقق</h2>
-            <form method="post" style="display:inline-block; width:300px;">
-                <input type="number" name="otp" placeholder="----" required style="width:100%; padding:15px; text-align:center; font-size:28px; border-radius:12px; border:2px solid #4f46e5;">
-                <button type="submit" style="width:100%; padding:15px; background:#4f46e5; color:white; border:none; border-radius:12px; font-weight:bold; margin-top:20px;">تأكيد</button>
+        <div dir="rtl" style="font-family:sans-serif; text-align:center; padding:40px 20px;">
+            <h2>تحقق من رقمك</h2>
+            <p style="color:#64748b;">لتفعيل حسابك، اضغط على الزر أدناه لإرسال طلب الكود للمدير عبر الواتساب:</p>
+            
+            <a href="{wa_link}" target="_blank" style="display:inline-block; background:#25d366; color:white; padding:15px 25px; border-radius:12px; text-decoration:none; font-weight:bold; margin-bottom:30px;">
+                💬 احصل على الكود عبر الواتساب
+            </a>
+
+            <form method="post" style="display:block; max-width:300px; margin:auto; border-top:1px solid #eee; pt:20px;">
+                <p>أدخل الكود الذي استلمته هنا:</p>
+                <input type="number" name="otp" placeholder="----" required style="width:100%; padding:15px; text-align:center; font-size:24px; border-radius:12px; border:2px solid #4f46e5;">
+                <button type="submit" style="width:100%; padding:15px; background:#4f46e5; color:white; border:none; border-radius:12px; font-weight:bold; margin-top:15px;">تفعيل الحساب</button>
             </form>
         </div>
     ''')
 
-# --- بقية المسارات ---
+# --- تسجيل الدخول والصفحة الرئيسية وبقية الدوال ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -112,7 +114,7 @@ def login():
                 <input type="password" name="password" placeholder="كلمة المرور" required style="width:100%; padding:15px; border-radius:12px; border:1px solid #ddd; margin-bottom:10px;">
                 <button type="submit" style="width:100%; padding:15px; background:#4f46e5; color:white; border:none; border-radius:12px; font-weight:bold;">دخول</button>
             </form>
-            <p>جديد هنا؟ <a href="/register">أنشئ حسابك</a></p>
+            <p>جديد؟ <a href="/register">أنشئ حساب</a></p>
         </div>
     ''')
 
@@ -160,9 +162,16 @@ def index():
                 <div style="font-weight:bold; color:var(--primary);">{{ p['price'] }} ريال</div>
                 <p style="font-size:0.9rem; opacity:0.8;">{{ p['description'] }}</p>
                 <a href="https://wa.me/{{ p['whatsapp'] }}" class="btn-buy" target="_blank">واتساب</a>
+                {% if session.get('user_id') == p['user_id'] %}
+                <form action="/delete_product" method="post" style="margin-top:10px;">
+                    <input type="hidden" name="id" value="{{ p['id'] }}">
+                    <button type="submit" style="background:#ef4444; color:white; border:none; width:100%; padding:8px; border-radius:8px; cursor:pointer;">حذف إعلاني 🗑️</button>
+                </form>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
+        
         <div id="addModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); align-items:center; justify-content:center; z-index:100;">
             <div style="background:var(--card); padding:20px; border-radius:20px; width:90%; max-width:400px;">
                 <h3>نشر إعلان جديد</h3>
@@ -196,6 +205,14 @@ def add_public():
     cur.execute("INSERT INTO products (user_id, name, price, image_url, description, whatsapp) VALUES (%s, %s, %s, %s, %s, %s)", 
                 (session['user_id'], name, price, img_data, desc, session['user_phone']))
     conn.commit(); cur.close(); conn.close()
+    return redirect(url_for('index'))
+
+@app.route('/delete_product', methods=['POST'])
+def delete_product():
+    if 'user_id' in session:
+        conn = get_db_connection(); cur = conn.cursor()
+        cur.execute("DELETE FROM products WHERE id = %s AND user_id = %s", (request.form.get('id'), session['user_id']))
+        conn.commit(); cur.close(); conn.close()
     return redirect(url_for('index'))
 
 if __name__ == "__main__":
