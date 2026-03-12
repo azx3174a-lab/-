@@ -5,9 +5,9 @@ from psycopg2.extras import DictCursor
 import base64
 
 app = Flask(__name__)
-app.secret_key = "ein_store_2026_final_secure_v6"
+app.secret_key = "eyin_secret_key_v10"
 
-# !!! ضع رقم واتسابك هنا !!!
+# !!! رقم واتسابك !!!
 MY_WHATSAPP = "966550963174" 
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
@@ -15,25 +15,7 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL, sslmode='require')
 
-def init_db():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS products (
-            id SERIAL PRIMARY KEY,
-            name TEXT NOT NULL,
-            price NUMERIC NOT NULL,
-            description TEXT,
-            image_url TEXT
-        )
-    ''')
-    conn.commit()
-    cur.close()
-    conn.close()
-
-init_db()
-
-# --- واجهة المتجر ---
+# --- الصفحة الرئيسية (بدون رابط إدارة) ---
 @app.route('/')
 def index():
     conn = get_db_connection()
@@ -56,7 +38,7 @@ def index():
             .header { display: flex; justify-content: space-between; align-items: center; max-width: 1100px; margin: auto; }
             .theme-btn { background: var(--card); border: 1px solid var(--border); cursor: pointer; padding: 10px; border-radius: 50%; font-size: 20px; color: var(--text); }
             .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; max-width: 1100px; margin: 40px auto; }
-            .card { background: var(--card); padding: 25px; border-radius: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); border: 1px solid var(--border); }
+            .card { background: var(--card); padding: 25px; border-radius: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); border: 1px solid var(--border); position: relative; }
             .card img { width: 110px; height: 110px; object-fit: contain; border-radius: 18px; margin-bottom: 15px; }
             .price { font-size: 26px; color: var(--primary); font-weight: bold; margin-bottom: 20px; }
             .btn-buy { background: #25d366; color: white; border: none; padding: 12px; border-radius: 12px; width: 100%; cursor: pointer; font-size: 1.1em; font-weight: bold; text-decoration: none; display: block; text-align: center; }
@@ -72,13 +54,12 @@ def index():
             <div class="card">
                 <img src="{{ p['image_url'] or 'https://via.placeholder.com/150' }}">
                 <h3>{{ p['name'] }}</h3>
-                <p style="color: var(--muted); font-size: 0.95em; min-height: 45px;">{{ p['description'] or 'اشتراك رقمي مميز' }}</p>
+                <p style="color: var(--muted); font-size: 0.95em; min-height: 45px;">{{ p['description'] or '' }}</p>
                 <div class="price">{{ p['price'] }} ريال</div>
-                <a href="https://wa.me/{{ whatsapp }}?text=أهلاً متجر عين، أرغب في شراء: {{ p['name'] }}" class="btn-buy" target="_blank">شراء عبر واتساب</a>
+                <a href="https://wa.me/{{ whatsapp }}?text=أرغب في شراء: {{ p['name'] }}" class="btn-buy" target="_blank">شراء عبر واتساب</a>
             </div>
             {% endfor %}
         </div>
-        <center><a href="/admin" style="color: var(--muted); text-decoration: none; font-size: 0.8em;">⚙️ الإدارة</a></center>
         <script>
             function toggleTheme() {
                 const currentTheme = document.documentElement.getAttribute('data-theme');
@@ -96,11 +77,10 @@ def index():
     '''
     return render_template_string(html, products=products, whatsapp=MY_WHATSAPP)
 
-# --- لوحة التحكم بكلمة مرور جديدة ---
-@app.route('/admin', methods=['GET', 'POST'])
+# --- رابط لوحة التحكم السري (تغير من admin إلى eyin-control) ---
+@app.route('/eyin-control', methods=['GET', 'POST'])
 def admin():
     if request.method == 'POST':
-        # كلمة المرور الجديدة
         if request.form.get('password') == '317400':
             session['logged_in'] = True
         elif 'logged_in' in session:
@@ -130,15 +110,7 @@ def admin():
             return redirect(url_for('admin'))
 
     if not session.get('logged_in'):
-        return '''
-        <div dir="rtl" style="text-align:center;padding:100px; font-family:sans-serif;">
-            <h2>قفل الإدارة 🔐</h2>
-            <form method="post">
-                <input type="password" name="password" placeholder="أدخل كلمة المرور" style="padding:10px; border-radius:8px; border:1px solid #ccc;">
-                <button type="submit" style="padding:10px 20px; border-radius:8px; background:#4f46e5; color:white; border:none; cursor:pointer;">دخول</button>
-            </form>
-        </div>
-        '''
+        return '<div dir="rtl" style="text-align:center;padding:100px;"><h2>🔐 دخول خاص</h2><form method="post"><input type="password" name="password"><button type="submit">دخول</button></form></div>'
 
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=DictCursor)
@@ -148,39 +120,37 @@ def admin():
     conn.close()
 
     return render_template_string('''
-    <div dir="rtl" style="font-family: sans-serif; padding: 20px; max-width: 1100px; margin: auto;">
-        <h2>⚙️ إدارة متجر عين</h2>
-        <table border="1" style="width:100%; border-collapse: collapse; text-align: center;">
-            <tr style="background:#f1f5f9;"><th>المنتج</th><th>السعر</th><th>الوصف</th><th>الصورة</th><th>إجراء</th></tr>
+    <div dir="rtl" style="font-family: sans-serif; padding: 20px;">
+        <h2>⚙️ لوحة التحكم السرية</h2>
+        <table border="1" style="width:100%; border-collapse: collapse;">
             {% for p in products %}
             <tr>
                 <form method="post" enctype="multipart/form-data">
                     <input type="hidden" name="id" value="{{ p['id'] }}">
                     <input type="hidden" name="existing_image" value="{{ p['image_url'] }}">
-                    <td><input type="text" name="name" value="{{ p['name'] }}" style="width:100px;"></td>
-                    <td><input type="number" name="price" value="{{ p['price'] }}" style="width:60px;"></td>
-                    <td><textarea name="description" rows="2">{{ p['description'] }}</textarea></td>
-                    <td><img src="{{ p['image_url'] }}" width="40" style="border-radius:5px;"><br><input type="file" name="image_file" style="font-size:10px; width:120px;"></td>
+                    <td><input type="text" name="name" value="{{ p['name'] }}"></td>
+                    <td><input type="number" name="price" value="{{ p['price'] }}"></td>
+                    <td><textarea name="description">{{ p['description'] }}</textarea></td>
+                    <td><img src="{{ p['image_url'] }}" width="40"><br><input type="file" name="image_file"></td>
                     <td>
-                        <button type="submit" name="action" value="update" style="background:#059669; color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer;">حفظ</button>
-                        <button type="submit" name="action" value="delete" style="background:#dc2626; color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer;" onclick="return confirm('حذف المنتج؟')">حذف</button>
+                        <button type="submit" name="action" value="update">حفظ</button>
+                        <button type="submit" name="action" value="delete">حذف</button>
                     </td>
                 </form>
             </tr>
             {% endfor %}
         </table>
-        <div style="background:#f1f5f9; padding:25px; border-radius:15px; margin-top:30px;">
-            <h3>➕ إضافة منتج جديد</h3>
-            <form method="post" enctype="multipart/form-data">
-                <input type="hidden" name="action" value="add">
-                الاسم: <input type="text" name="name" required style="margin:5px;">
-                السعر: <input type="number" name="price" required style="width:70px; margin:5px;">
-                الوصف: <input type="text" name="description" placeholder="وصف قصير" style="margin:5px;">
-                الصورة: <input type="file" name="image_file" accept="image/*" required style="margin:5px;">
-                <button type="submit" style="background:#4f46e5; color:white; padding:10px 25px; border-radius:10px; border:none; cursor:pointer; font-weight:bold;">إضافة للمتجر</button>
-            </form>
-        </div>
-        <br><a href="/" style="text-decoration:none; color:#4f46e5;">⬅️ العودة للمتجر</a> | <a href="/logout" style="color:#dc2626; text-decoration:none;">خروج</a>
+        <hr>
+        <h3>اضافة منتج</h3>
+        <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="action" value="add">
+            الاسم: <input type="text" name="name" required>
+            السعر: <input type="number" name="price" required>
+            الوصف: <input type="text" name="description">
+            الصورة: <input type="file" name="image_file" required>
+            <button type="submit">إضافة</button>
+        </form>
+        <br><a href="/">الخروج للمتجر</a>
     </div>
     ''', products=products)
 
