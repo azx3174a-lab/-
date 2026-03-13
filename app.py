@@ -6,7 +6,7 @@ app = Flask(__name__)
 app.secret_key = "eyin_gateway_v34"
 
 # !!! ضع رقم واتسابك هنا لاستقبال طلبات الأكواد !!!
-ADMIN_WHATSAPP = "966500000000" 
+ADMIN_WHATSAPP = "966550963174" 
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
