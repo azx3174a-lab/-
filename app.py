@@ -3,7 +3,7 @@ import os, psycopg2, base64, random
 from psycopg2.extras import DictCursor
 
 app = Flask(__name__)
-app.secret_key = "eyin_fix_v32"
+app.secret_key = "eyin_stable_v33"
 
 # !!! ضع رقم واتسابك هنا !!!
 ADMIN_WHATSAPP = "966550963174" 
@@ -25,8 +25,8 @@ def init_db():
 
 init_db()
 
-# --- القالب الموحد (تم إصلاح تداخل الأقواس) ---
-LAYOUT = """
+# --- القالب الموحد (تم تنظيفه من تداخل الأقواس) ---
+LAYOUT_START = """
 <!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
@@ -48,24 +48,19 @@ LAYOUT = """
     <div class="header">
         <h2 style="margin:0;">متجر عيـن</h2>
         <div style="display:flex; gap:10px; align-items:center;">
-            {% if session.get('user_id') %}
-                <a href="/my-ads" style="text-decoration:none; color:var(--primary); font-weight:bold;">إعلاناتي</a>
-                <button onclick="document.getElementById('addModal').style.display='flex'" class="add-btn">+ إعلان</button>
-                <a href="/logout_user" style="color:red; font-size:12px; text-decoration:none;">خروج</a>
-            {% else %}
-                <a href="/login" style="text-decoration:none; color:var(--primary); font-weight:bold;">دخول</a>
-            {% endif %}
+"""
+
+LAYOUT_END = """
             <button class="theme-btn" onclick="toggleTheme()" id="theme-icon">🌙</button>
         </div>
     </div>
-    {% block content %}{% endblock %}
     <script>
         function toggleTheme() {
-            const b = document.body;
-            const t = b.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            var b = document.body;
+            var t = b.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
             b.setAttribute('data-theme', t);
             localStorage.setItem('eyin_theme', t);
-            document.getElementById('theme-icon').innerText = t === 'dark' ? '☀️' : '🌙';
+            document.getElementById('theme-icon').innerText = (t === 'dark' ? '☀️' : '🌙');
         }
         document.body.setAttribute('data-theme', localStorage.getItem('eyin_theme') || 'light');
     </script>
@@ -73,36 +68,24 @@ LAYOUT = """
 </html>
 """
 
+def wrap(content):
+    user_nav = ""
+    if 'user_id' in session:
+        user_nav = f'<a href="/my-ads" style="text-decoration:none; color:var(--primary); font-weight:bold;">إعلاناتي</a><button onclick="document.getElementById(\'addModal\').style.display=\'flex\'" class="add-btn">+ إعلان</button><a href="/logout_user" style="color:red; font-size:12px; text-decoration:none;">خروج</a>'
+    else:
+        user_nav = '<a href="/login" style="text-decoration:none; color:var(--primary); font-weight:bold;">دخول</a>'
+    return LAYOUT_START + user_nav + LAYOUT_END.replace('</body>', content + '</body>')
+
 @app.route('/')
 def index():
     conn = get_db_connection(); cur = conn.cursor(cursor_factory=DictCursor)
-    cur.execute("SELECT * FROM products ORDER BY id DESC"); prods = cur.fetchall()
-    cur.close(); conn.close()
-    return render_template_string(LAYOUT.replace('{% block content %}{% endblock %}', '''
-    <div class="grid">
-        {% for p in prods %}
-        <div class="card">
-            <img src="{{p['image_url']}}" style="width:100%; height:180px; object-fit:contain; border-radius:10px;">
-            <h3>{{p['name']}}</h3>
-            <div style="font-weight:bold; color:var(--primary);">{{p['price']}} ريال</div>
-            <p style="font-size:0.8rem;">{{p['description']}}</p>
-            <a href="https://wa.me/{{p['whatsapp']}}" style="background:#22c55e; color:white; text-decoration:none; display:block; text-align:center; padding:10px; border-radius:10px; font-weight:bold;">واتساب</a>
-        </div>
-        {% endfor %}
-    </div>
-    <div id="addModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); align-items:center; justify-content:center; z-index:100;">
-        <div style="background:var(--card); padding:20px; border-radius:20px; width:90%; max-width:400px;">
-            <form action="/add_public" method="post" enctype="multipart/form-data">
-                <input type="text" name="name" placeholder="اسم المنتج" required>
-                <input type="number" name="price" placeholder="السعر" required>
-                <textarea name="description" placeholder="الوصف"></textarea>
-                <input type="file" name="image_file" required>
-                <button type="submit" style="width:100%; padding:12px; background:var(--primary); color:white; border:none; border-radius:10px;">نشر</button>
-                <button type="button" onclick="document.getElementById('addModal').style.display='none'" style="width:100%; margin-top:5px; background:none; border:none; color:gray;">إلغاء</button>
-            </form>
-        </div>
-    </div>
-    '''), prods=prods)
+    cur.execute("SELECT * FROM products ORDER BY id DESC"); prods = cur.fetchall(); cur.close(); conn.close()
+    
+    cards = "".join([f'<div class="card"><img src="{p["image_url"]}" style="width:100%; height:180px; object-fit:contain; border-radius:10px;"><h3>{p["name"]}</h3><div style="font-weight:bold; color:var(--primary);">{p["price"]} ريال</div><p style="font-size:0.8rem;">{p["description"]}</p><a href="https://wa.me/{p["whatsapp"]}" style="background:#22c55e; color:white; text-decoration:none; display:block; text-align:center; padding:10px; border-radius:10px; font-weight:bold;">واتساب</a></div>' for p in prods])
+    
+    modal = '<div id="addModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); align-items:center; justify-content:center; z-index:100;"><div style="background:var(--card); padding:20px; border-radius:20px; width:90%; max-width:400px;"><h3>نشر إعلان</h3><form action="/add_public" method="post" enctype="multipart/form-data"><input type="text" name="name" placeholder="الاسم" required><input type="number" name="price" placeholder="السعر" required><textarea name="description" placeholder="الوصف"></textarea><input type="file" name="image_file" required><button type="submit" style="width:100%; padding:12px; background:var(--primary); color:white; border:none; border-radius:10px;">نشر</button><button type="button" onclick="document.getElementById(\'addModal\').style.display=\'none\'" style="width:100%; margin-top:5px; background:none; border:none; color:gray;">إلغاء</button></form></div></div>'
+    
+    return wrap(f'<div class="grid">{cards}</div>{modal}')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -112,52 +95,26 @@ def login():
         cur.execute("SELECT * FROM users WHERE phone=%s AND password=%s", (p, pw))
         u = cur.fetchone(); cur.close(); conn.close()
         if u: session['user_id']=u['id']; session['user_phone']=u['phone']; return redirect('/')
-    return render_template_string(LAYOUT.replace('{% block content %}{% endblock %}', '''
-    <div style="text-align:center; padding:50px;">
-        <h2>دخول</h2>
-        <form method="post" style="max-width:300px; margin:auto;">
-            966+ <input type="number" name="phone" required>
-            <input type="password" name="password" required>
-            <button type="submit" style="width:100%; background:var(--primary); color:white; border:none; padding:10px; border-radius:10px;">دخول</button>
-        </form>
-    </div>
-    '''))
+    return wrap('<div style="text-align:center; padding:50px;"><h2>دخول</h2><form method="post" style="max-width:300px; margin:auto;">966+ <input type="number" name="phone" required><input type="password" name="password" required><button type="submit" style="width:100%; background:var(--primary); color:white; border:none; padding:10px; border-radius:10px;">دخول</button></form><p>ليس لديك حساب؟ <a href="/register">سجل هنا</a></p></div>')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         session['temp'] = {'p': "966"+request.form.get('phone'), 'pw': request.form.get('password'), 'otp': str(random.randint(1000,9999))}
         return redirect('/verify')
-    return render_template_string(LAYOUT.replace('{% block content %}{% endblock %}', '''
-    <div style="text-align:center; padding:50px;">
-        <h2>تسجيل جديد</h2>
-        <form method="post" style="max-width:300px; margin:auto;">
-            966+ <input type="number" name="phone" required>
-            <input type="password" name="password" required>
-            <button type="submit" style="width:100%; background:var(--primary); color:white; border:none; padding:10px; border-radius:10px;">التالي</button>
-        </form>
-    </div>
-    '''))
+    return wrap('<div style="text-align:center; padding:50px;"><h2>تسجيل</h2><form method="post" style="max-width:300px; margin:auto;">966+ <input type="number" name="phone" required><input type="password" name="password" required><button type="submit" style="width:100%; background:var(--primary); color:white; border:none; padding:10px; border-radius:10px;">التالي</button></form></div>')
 
 @app.route('/verify', methods=['GET', 'POST'])
 def verify():
     if 'temp' not in session: return redirect('/register')
     otp = session['temp']['otp']
-    wa = f"https://wa.me/{ADMIN_WHATSAPP}?text=كود تفعيل متجر عين: {otp}"
+    wa = f"https://wa.me/{ADMIN_WHATSAPP}?text=كود: {otp}"
     if request.method == 'POST':
         if request.form.get('otp') == otp:
             conn = get_db_connection(); cur = conn.cursor(); t = session['temp']
             cur.execute("INSERT INTO users (phone, password) VALUES (%s, %s)", (t['p'], t['pw']))
             conn.commit(); cur.close(); conn.close(); session.pop('temp'); return redirect('/login')
-    return render_template_string(LAYOUT.replace('{% block content %}{% endblock %}', f'''
-    <div style="text-align:center; padding:50px;">
-        <a href="{wa}" target="_blank" style="background:#25d366; color:white; padding:15px; text-decoration:none; border-radius:10px;">💬 اطلب الكود واتساب</a>
-        <form method="post" style="margin-top:20px;">
-            <input type="number" name="otp" required>
-            <button type="submit" style="width:100%; background:var(--primary); color:white; border:none; padding:10px; border-radius:10px;">تأكيد</button>
-        </form>
-    </div>
-    '''))
+    return wrap(f'<div style="text-align:center; padding:50px;"><a href="{wa}" target="_blank" style="background:green; color:white; padding:10px; text-decoration:none;">طلب الكود</a><form method="post"><input type="number" name="otp" required><button type="submit">تأكيد</button></form></div>')
 
 @app.route('/my-ads')
 def my_ads():
@@ -165,29 +122,13 @@ def my_ads():
     conn = get_db_connection(); cur = conn.cursor(cursor_factory=DictCursor)
     cur.execute("SELECT * FROM products WHERE user_id=%s ORDER BY id DESC", (session['user_id'],))
     prods = cur.fetchall(); cur.close(); conn.close()
-    return render_template_string(LAYOUT.replace('{% block content %}{% endblock %}', '''
-    <div style="padding:20px;">
-        <h2>📦 إعلاناتي</h2> <a href="/">عودة</a>
-        <div class="grid">
-            {% for p in prods %}
-            <div class="card">
-                <img src="{{p['image_url']}}" style="width:100%; height:150px; object-fit:contain;">
-                <h3>{{p['name']}}</h3>
-                <form action="/delete_product" method="post">
-                    <input type="hidden" name="id" value="{{p['id']}}">
-                    <button type="submit" style="background:red; color:white; border:none; width:100%; padding:8px; border-radius:8px;">حذف</button>
-                </form>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    '''), prods=prods)
+    cards = "".join([f'<div class="card"><img src="{p["image_url"]}" style="width:100%; height:150px; object-fit:contain;"><h3>{p["name"]}</h3><form action="/delete_product" method="post"><input type="hidden" name="id" value="{p["id"]}"><button type="submit" style="background:red; color:white; border:none; width:100%; padding:8px; border-radius:8px;">حذف</button></form></div>' for p in prods])
+    return wrap(f'<div style="padding:20px;"><h2>إعلاناتي</h2><a href="/">عودة</a><div class="grid">{cards}</div></div>')
 
 @app.route('/add_public', methods=['POST'])
 def add_public():
     if 'user_id' not in session: return redirect('/login')
-    f = request.files['image_file']
-    img = f"data:{f.content_type};base64,{base64.b64encode(f.read()).decode('utf-8')}"
+    f = request.files['image_file']; img = f"data:{f.content_type};base64,{base64.b64encode(f.read()).decode('utf-8')}"
     conn = get_db_connection(); cur = conn.cursor()
     cur.execute("INSERT INTO products (user_id, name, price, image_url, description, whatsapp) VALUES (%s, %s, %s, %s, %s, %s)", 
                 (session['user_id'], request.form.get('name'), request.form.get('price'), img, request.form.get('description'), session['user_phone']))
@@ -207,17 +148,13 @@ def admin():
         if request.form.get('password') == '317400': session['admin']=True
         elif session.get('admin'):
             conn = get_db_connection(); cur = conn.cursor()
-            if request.form.get('action') == 'delete':
-                cur.execute("DELETE FROM products WHERE id=%s", (request.form.get('id'),))
+            if request.form.get('action') == 'delete': cur.execute("DELETE FROM products WHERE id=%s", (request.form.get('id'),))
             conn.commit(); cur.close(); conn.close(); return redirect('/eyin-control')
     if not session.get('admin'): return '<form method="post">🔐 <input type="password" name="password"><button type="submit">دخول</button></form>'
     conn = get_db_connection(); cur = conn.cursor(cursor_factory=DictCursor)
     cur.execute("SELECT * FROM products ORDER BY id DESC"); prods = cur.fetchall(); cur.close(); conn.close()
-    return render_template_string('''<div dir="rtl" style="padding:20px;"><h2>لوحة الإدارة</h2><hr>
-    {% for p in prods %}
-    <div>{{p['name']}} <form method="post" style="display:inline;"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{p['id']}}"><button type="submit" style="color:red;">حذف</button></form></div>
-    {% endfor %}
-    <br><a href="/">عودة</a></div>''', prods=prods)
+    p_list = "".join([f'<div>{p["name"]} <form method="post" style="display:inline;"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{p["id"]}"><button type="submit" style="color:red;">حذف</button></form></div>' for p in prods])
+    return f'<div dir="rtl" style="padding:20px;"><h2>لوحة الإدارة</h2>{p_list}<br><a href="/">عودة</a></div>'
 
 @app.route('/logout_user')
 def logout_user(): session.clear(); return redirect('/')
