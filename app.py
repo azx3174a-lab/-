@@ -3,7 +3,7 @@ import os, psycopg2, base64, random
 from psycopg2.extras import DictCursor
 
 app = Flask(__name__)
-app.secret_key = "eyin_custom_v35"
+app.secret_key = "eyin_custom_v36"
 
 # !!! ضع رقم واتسابك هنا لاستقبال طلبات الأكواد !!!
 ADMIN_WHATSAPP = "966550963174" 
@@ -17,9 +17,8 @@ def init_db():
     try:
         conn = get_db_connection(); cur = conn.cursor()
         cur.execute("CREATE TABLE IF NOT EXISTS settings (id SERIAL PRIMARY KEY, key TEXT UNIQUE, value TEXT)")
-        # قيم افتراضية للشعار واسم المتجر
         cur.execute("INSERT INTO settings (key, value) VALUES ('logo', '') ON CONFLICT (key) DO NOTHING")
-        cur.execute("INSERT INTO settings (key, value) VALUES ('store_name', 'متجر عين') ON CONFLICT (key) DO NOTHING")
+        cur.execute("INSERT INTO settings (key, value) VALUES ('store_name', 'eyin') ON CONFLICT (key) DO NOTHING")
         cur.execute("CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, phone TEXT UNIQUE NOT NULL, password TEXT NOT NULL)")
         cur.execute("CREATE TABLE IF NOT EXISTS products (id SERIAL PRIMARY KEY, name TEXT, price TEXT, image_url TEXT, description TEXT, whatsapp TEXT, user_id INTEGER)")
         conn.commit(); cur.close(); conn.close()
@@ -27,7 +26,6 @@ def init_db():
 
 init_db()
 
-# جلب الإعدادات (الاسم والشعار)
 def get_settings():
     conn = get_db_connection(); cur = conn.cursor(cursor_factory=DictCursor)
     cur.execute("SELECT key, value FROM settings")
@@ -42,8 +40,8 @@ LAYOUT_START = """
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ settings['store_name'] }}</title>
     <style>
-        :root { --bg: #ffffff; --card: #f8fafc; --text: #1e293b; --border: #e2e8f0; --primary: #4f46e5; --btn-bg: #000; --btn-text: #fff; }
-        [data-theme="dark"] { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --border: #334155; --primary: #818cf8; --btn-bg: #fff; --btn-text: #000; }
+        :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --border: #334155; --primary: #818cf8; --btn-bg: #fff; --btn-text: #000; }
+        [data-theme="light"] { --bg: #ffffff; --card: #f8fafc; --text: #1e293b; --border: #e2e8f0; --primary: #4f46e5; --btn-bg: #000; --btn-text: #fff; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; transition: 0.3s; }
         .header { display: flex; justify-content: space-between; align-items: center; max-width: 1000px; margin: auto; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
         .logo-container { display: flex; align-items: center; gap: 10px; }
@@ -51,9 +49,11 @@ LAYOUT_START = """
         .theme-btn { background: var(--btn-bg); color: var(--btn-text); border: none; cursor: pointer; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
         .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 1000px; margin: 20px auto; }
         .card { background: var(--card); border-radius: 20px; border: 1px solid var(--border); padding: 15px; }
-        .auth-box { max-width: 350px; margin: 80px auto; text-align: center; background: var(--card); padding: 30px; border-radius: 25px; border: 1px solid var(--border); }
+        .auth-box { max-width: 380px; margin: 40px auto; text-align: center; }
+        .slogan { font-size: 1.2rem; font-weight: bold; margin-bottom: 25px; padding: 15px; border: 2px solid var(--primary); border-radius: 15px; color: var(--primary); background: rgba(129, 140, 248, 0.1); }
+        .auth-card { background: var(--card); padding: 30px; border-radius: 25px; border: 1px solid var(--border); }
         input, textarea { width: 100%; padding: 12px; margin: 10px 0; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); box-sizing: border-box; }
-        .main-btn { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        .main-btn { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
     </style>
 </head>
 <body data-theme="dark">
@@ -98,7 +98,6 @@ def index():
     
     cards = "".join([f'<div class="card"><img src="{p["image_url"]}" style="width:100%; height:180px; object-fit:contain; border-radius:10px;"><h3>{p["name"]}</h3><div style="font-weight:bold; color:var(--primary);">{p["price"]} ريال</div><p style="font-size:0.8rem;">{p["description"]}</p><a href="https://wa.me/{p["whatsapp"]}" style="background:#22c55e; color:white; text-decoration:none; display:block; text-align:center; padding:10px; border-radius:10px; font-weight:bold;">واتساب</a></div>' for p in prods])
     modal = '<div id="addModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); align-items:center; justify-content:center; z-index:100;"><div style="background:var(--card); padding:20px; border-radius:20px; width:90%; max-width:400px;"><h3>نشر إعلان</h3><form action="/add_public" method="post" enctype="multipart/form-data"><input type="text" name="name" placeholder="ماذا تبيع؟" required><input type="number" name="price" placeholder="السعر" required><textarea name="description" placeholder="الوصف"></textarea><input type="file" name="image_file" required><button type="submit" class="main-btn">نشر الآن</button><button type="button" onclick="document.getElementById(\'addModal\').style.display=\'none\'" style="width:100%; margin-top:10px; background:none; border:none; color:gray;">إلغاء</button></form></div></div>'
-    
     return wrap(f'<div class="grid">{cards}</div>{modal}', st)
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -106,7 +105,23 @@ def register():
     if request.method == 'POST':
         session['temp'] = {'p': "966"+request.form.get('phone'), 'pw': request.form.get('password'), 'otp': str(random.randint(1000,9999))}
         return redirect('/verify')
-    return wrap('''<div class="auth-box"><h2>إنشاء حساب</h2><form method="post"><div style="display:flex; align-items:center; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:0 10px;"><span style="font-weight:bold; opacity:0.7;">966+</span><input type="number" name="phone" placeholder="5xxxxxxxx" required style="border:none; margin:0;"></div><input type="password" name="password" placeholder="كلمة المرور" required><button type="submit" class="main-btn">تسجيل</button></form><p>لديك حساب؟ <a href="/login">دخول</a></p></div>''', get_settings())
+    return wrap('''
+    <div class="auth-box">
+        <div class="slogan">عـيـن فراش لك و عـيـن لحافي</div>
+        <div class="auth-card">
+            <h2 style="margin-top:0;">إنشاء حساب</h2>
+            <form method="post">
+                <div style="display:flex; align-items:center; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:0 10px;">
+                    <span style="font-weight:bold; opacity:0.7;">966+</span>
+                    <input type="number" name="phone" placeholder="5xxxxxxxx" required style="border:none; margin:0;">
+                </div>
+                <input type="password" name="password" placeholder="كلمة المرور" required>
+                <button type="submit" class="main-btn">تسجيل</button>
+            </form>
+            <p style="font-size:14px; margin-top:20px;">لديك حساب؟ <a href="/login" style="color:var(--primary); text-decoration:none; font-weight:bold;">دخول</a></p>
+        </div>
+    </div>
+    ''', get_settings())
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -116,7 +131,23 @@ def login():
         cur.execute("SELECT * FROM users WHERE phone=%s AND password=%s", (p, pw))
         u = cur.fetchone(); cur.close(); conn.close()
         if u: session['user_id']=u['id']; session['user_phone']=u['phone']; return redirect('/')
-    return wrap('''<div class="auth-box"><h2>تسجيل دخول</h2><form method="post"><div style="display:flex; align-items:center; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:0 10px;"><span style="font-weight:bold; opacity:0.7;">966+</span><input type="number" name="phone" placeholder="5xxxxxxxx" required style="border:none; margin:0;"></div><input type="password" name="password" placeholder="كلمة المرور" required><button type="submit" class="main-btn">دخول</button></form></div>''', get_settings())
+    return wrap('''
+    <div class="auth-box">
+        <div class="slogan">عـيـن فراش لك و عـيـن لحافي</div>
+        <div class="auth-card">
+            <h2 style="margin-top:0;">تسجيل دخول</h2>
+            <form method="post">
+                <div style="display:flex; align-items:center; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:0 10px;">
+                    <span style="font-weight:bold; opacity:0.7;">966+</span>
+                    <input type="number" name="phone" placeholder="5xxxxxxxx" required style="border:none; margin:0;">
+                </div>
+                <input type="password" name="password" placeholder="كلمة المرور" required>
+                <button type="submit" class="main-btn">دخول</button>
+            </form>
+            <p style="font-size:14px; margin-top:20px;">جديد؟ <a href="/register" style="color:var(--primary); text-decoration:none; font-weight:bold;">أنشئ حساب</a></p>
+        </div>
+    </div>
+    ''', get_settings())
 
 @app.route('/verify', methods=['GET', 'POST'])
 def verify():
@@ -128,7 +159,7 @@ def verify():
             conn = get_db_connection(); cur = conn.cursor(); t = session['temp']
             cur.execute("INSERT INTO users (phone, password) VALUES (%s, %s)", (t['p'], t['pw']))
             conn.commit(); cur.close(); conn.close(); session.pop('temp'); return redirect('/')
-    return wrap(f'''<div class="auth-box"><h2>تحقق</h2><a href="{wa}" target="_blank" style="background:#25d366; color:white; padding:15px; text-decoration:none; border-radius:12px; display:block; margin-bottom:20px;">طلب الكود واتساب</a><form method="post"><input type="number" name="otp" required><button type="submit" class="main-btn">تأكيد</button></form></div>''', get_settings())
+    return wrap(f'''<div class="auth-box"><div class="auth-card"><h2>تحقق</h2><a href="{wa}" target="_blank" style="background:#25d366; color:white; padding:15px; text-decoration:none; border-radius:12px; display:block; margin-bottom:20px;">طلب الكود واتساب</a><form method="post"><input type="number" name="otp" required><button type="submit" class="main-btn">تأكيد</button></form></div></div>''', get_settings())
 
 @app.route('/eyin-control', methods=['GET', 'POST'])
 def admin():
@@ -147,38 +178,12 @@ def admin():
             elif action == 'delete':
                 cur.execute("DELETE FROM products WHERE id=%s", (request.form.get('id'),))
             conn.commit(); cur.close(); conn.close(); return redirect('/eyin-control')
-            
     if not session.get('admin'): return '<form method="post" style="padding:50px; text-align:center;">🔐 <input type="password" name="password"><button type="submit">دخول</button></form>'
-    
     st = get_settings()
     conn = get_db_connection(); cur = conn.cursor(cursor_factory=DictCursor)
     cur.execute("SELECT * FROM products ORDER BY id DESC"); prods = cur.fetchall(); cur.close(); conn.close()
-    
     p_list = "".join([f'<div style="border-bottom:1px solid #ddd; padding:10px; display:flex; justify-content:space-between;"><span>{p["name"]}</span> <form method="post" style="display:inline;"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{p["id"]}"><button type="submit" style="color:red; background:none; border:none; cursor:pointer;">حذف</button></form></div>' for p in prods])
-    
-    return f'''<div dir="rtl" style="padding:20px; font-family:sans-serif; max-width:500px; margin:auto;">
-        <h2>🛠️ إعدادات المتجر</h2>
-        <div style="background:#f0f0f0; padding:15px; border-radius:15px; margin-bottom:10px;">
-            <h3>1️⃣ تغيير الشعار</h3>
-            <form method="post" enctype="multipart/form-data">
-                <input type="hidden" name="action" value="update_logo">
-                <input type="file" name="logo_file" required>
-                <button type="submit">تحديث الشعار</button>
-            </form>
-        </div>
-        <div style="background:#f0f0f0; padding:15px; border-radius:15px; margin-bottom:10px;">
-            <h3>2️⃣ اسم المتجر</h3>
-            <form method="post">
-                <input type="hidden" name="action" value="update_name">
-                <input type="text" name="store_name" value="{st['store_name']}" required>
-                <button type="submit">حفظ الاسم</button>
-            </form>
-        </div>
-        <hr>
-        <h3>📦 المنتجات الحالية</h3>
-        {p_list}
-        <br><a href="/">العودة للمتجر</a>
-    </div>'''
+    return f'''<div dir="rtl" style="padding:20px; font-family:sans-serif; max-width:500px; margin:auto;"><h2>🛠️ إعدادات المتجر</h2><div style="background:#f0f0f0; padding:15px; border-radius:15px; margin-bottom:10px;"><h3>1️⃣ الشعار</h3><form method="post" enctype="multipart/form-data"><input type="hidden" name="action" value="update_logo"><input type="file" name="logo_file" required><button type="submit">تحديث</button></form></div><div style="background:#f0f0f0; padding:15px; border-radius:15px; margin-bottom:10px;"><h3>2️⃣ الاسم</h3><form method="post"><input type="hidden" name="action" value="update_name"><input type="text" name="store_name" value="{st['store_name']}" required><button type="submit">حفظ</button></form></div><hr>{p_list}<br><a href="/">العودة</a></div>'''
 
 @app.route('/my-ads')
 def my_ads():
@@ -187,7 +192,7 @@ def my_ads():
     conn = get_db_connection(); cur = conn.cursor(cursor_factory=DictCursor)
     cur.execute("SELECT * FROM products WHERE user_id=%s ORDER BY id DESC", (session['user_id'],))
     prods = cur.fetchall(); cur.close(); conn.close()
-    cards = "".join([f'<div class="card"><img src="{p["image_url"]}" style="width:100%; height:150px; object-fit:contain;"><h3>{p["name"]}</h3><form action="/delete_product" method="post"><input type="hidden" name="id" value="{p["id"]}"><button type="submit" style="background:#ef4444; color:white; border:none; width:100%; padding:8px; border-radius:8px;">حذف</button></form></div>' for p in prods])
+    cards = "".join([f'<div class="card"><img src="{p["image_url"]}" style="width:100%; height:150px; object-fit:contain;"><h3>{p["name"]}</h3><form action="/delete_product" method="post"><input type="hidden" name="id" value="{p["id"]}"><button type="submit" style="background:#ef4444; color:white; border:none; width:100%; padding:8px; border-radius:8px; cursor:pointer;">حذف</button></form></div>' for p in prods])
     return wrap(f'<h2>📦 إعلاناتي</h2><div class="grid">{cards}</div>', st)
 
 @app.route('/add_public', methods=['POST'])
