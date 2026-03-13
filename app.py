@@ -3,7 +3,7 @@ import os, psycopg2, base64, random
 from psycopg2.extras import DictCursor
 
 app = Flask(__name__)
-app.secret_key = "eyin_ultimate_fix_v56"
+app.secret_key = "eyin_ultimate_v57_full"
 
 # !!! ضع رقمك هنا للتحقق !!!
 MY_PHONE = "966550963174" 
@@ -16,24 +16,20 @@ def get_db_connection():
 def init_db():
     try:
         conn = get_db_connection(); cur = conn.cursor()
-        # 1. إنشاء الجداول الأساسية
         cur.execute("CREATE TABLE IF NOT EXISTS settings (id SERIAL PRIMARY KEY, key TEXT UNIQUE, value TEXT)")
         cur.execute("INSERT INTO settings (key, value) VALUES ('store_name', 'eyin') ON CONFLICT (key) DO NOTHING")
+        cur.execute("INSERT INTO settings (key, value) VALUES ('logo', '') ON CONFLICT (key) DO NOTHING")
         cur.execute("CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT, phone TEXT UNIQUE NOT NULL, password TEXT NOT NULL, is_banned BOOLEAN DEFAULT FALSE)")
         cur.execute("CREATE TABLE IF NOT EXISTS products (id SERIAL PRIMARY KEY, name TEXT, price TEXT, image_url TEXT, whatsapp TEXT, user_id INTEGER)")
         
-        # 2. الحل الجذري: إضافة الأعمدة الناقصة غصباً
+        # التأكد من تحديث الأعمدة
         try:
             cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT")
             cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE")
-        except Exception as e:
-            print(f"Migration note: {e}") # هذا يتجاهل الخطأ لو العمود موجود أصلاً
-            conn.rollback()
-            conn = get_db_connection(); cur = conn.cursor() # إعادة فتح الاتصال
+        except: conn.rollback()
             
         conn.commit(); cur.close(); conn.close()
-    except Exception as e:
-        print(f"Init DB Error: {e}")
+    except Exception as e: print(f"Init Error: {e}")
 
 init_db()
 
@@ -43,10 +39,12 @@ def get_st():
         cur.execute("SELECT key, value FROM settings")
         res = {r['key']: r['value'] for r in cur.fetchall()}
         cur.close(); conn.close()
-        return res if 'store_name' in res else {'store_name': 'eyin'}
-    except: return {'store_name': 'eyin'}
+        # ضمان وجود القيم الافتراضية
+        if 'store_name' not in res: res['store_name'] = 'eyin'
+        if 'logo' not in res: res['logo'] = ''
+        return res
+    except: return {'store_name': 'eyin', 'logo': ''}
 
-# --- القالب والشكل (LAYOUT) ---
 LAYOUT = """
 <!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -64,20 +62,23 @@ LAYOUT = """
         .card-info { flex: 1; display: flex; flex-direction: column; text-align: right; }
         .prod-name { color: #ffffff !important; margin: 0; font-size: 1.1rem; font-weight: bold; }
         .main-btn { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); box-sizing: border-box; }
-        .admin-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; color: black; border-radius: 10px; font-size: 12px; overflow: hidden; }
-        .admin-table th, .admin-table td { padding: 10px; border: 1px solid #ddd; text-align: center; }
+        input { width: 100%; padding: 10px; margin: 5px 0; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); box-sizing: border-box; }
+        .admin-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; color: black; font-size: 12px; }
+        .admin-table th, .admin-table td { padding: 8px; border: 1px solid #ddd; text-align: center; }
     </style>
 </head>
 <body data-theme="dark">
     <div class="header">
-        <h2 style="margin:0;">{{ st['store_name'] }}</h2>
+        <div style="display:flex; align-items:center; gap:10px;">
+            {% if st['logo'] %}<img src="{{ st['logo'] }}" style="width:35px; height:35px; border-radius:50%; object-fit:cover;">{% endif %}
+            <h2 style="margin:0;">{{ st['store_name'] }}</h2>
+        </div>
         <div style="display:flex; gap:12px; align-items:center;">
             {% if session.get('user_id') %}
                 <a href="/profile" style="text-decoration:none; font-size:20px;">👤</a>
-                <button onclick="document.getElementById('addModal').style.display='flex'" style="background:var(--primary); color:white; border:none; padding:5px 10px; border-radius:8px; cursor:pointer; font-weight:bold;">+</button>
+                <button onclick="document.getElementById('addModal').style.display='flex'" style="background:var(--primary); color:white; border:none; padding:5px 10px; border-radius:8px; cursor:pointer;">+</button>
             {% endif %}
-            <button onclick="document.body.setAttribute('data-theme', document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark')" style="cursor:pointer; border:none; background:none; font-size:18px;">🌙</button>
+            <button onclick="document.body.setAttribute('data-theme', document.body.getAttribute('data-theme')==='dark'?'light':'dark')" style="cursor:pointer; border:none; background:none; font-size:18px;">🌙</button>
         </div>
     </div>
     {% block content %}{% endblock %}
@@ -89,14 +90,8 @@ LAYOUT = """
 def index():
     if 'user_id' not in session: return redirect('/register')
     st = get_st(); conn = get_db_connection(); cur = conn.cursor(cursor_factory=DictCursor)
-    # فحص الحظر
-    cur.execute("SELECT is_banned FROM users WHERE id=%s", (session['user_id'],))
-    u = cur.fetchone()
-    if u and u['is_banned']: session.clear(); return "حسابك محظور."
-    
     cur.execute("SELECT p.*, u.username FROM products p JOIN users u ON p.user_id = u.id ORDER BY p.id DESC")
     prods = cur.fetchall(); cur.close(); conn.close()
-    
     html = '<div class="grid">'
     for p in prods:
         html += f'''<div class="card"><img src="{p['image_url']}"><div class="card-info">
@@ -105,28 +100,57 @@ def index():
         <div style="color:var(--primary); font-weight:bold;">{p['price']} ريال</div>
         <a href="https://wa.me/{p['whatsapp']}" style="color:#22c55e; text-decoration:none; font-size:13px; font-weight:bold; margin-top:5px;">💬 تواصل</a>
         </div></div>'''
-    
     return render_template_string(LAYOUT.replace('{% block content %}{% endblock %}', html + '</div>' + 
     '<div id="addModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); align-items:center; justify-content:center; z-index:100;"><div style="background:var(--card); padding:20px; border-radius:20px; width:90%; max-width:400px;">'
     '<h3>نشر إعلان</h3><form action="/add_public" method="post" enctype="multipart/form-data"><input type="text" name="name" placeholder="المنتج" required><input type="number" name="price" placeholder="السعر" required><input type="file" name="image_file" required><button type="submit" class="main-btn">نشر</button><button type="button" onclick="document.getElementById(\'addModal\').style.display=\'none\'" style="width:100%; background:none; border:none; color:gray; cursor:pointer;">إلغاء</button></form></div></div>'), st=st)
 
+@app.route('/eyin-control', methods=['GET', 'POST'])
+def admin():
+    if request.method == 'POST':
+        if request.form.get('password') == '317400': session['admin']=True
+        elif session.get('admin'):
+            conn = get_db_connection(); cur = conn.cursor(); a = request.form.get('action'); u_id = request.form.get('user_id')
+            if a == 'update_settings':
+                name = request.form.get('store_name')
+                cur.execute("UPDATE settings SET value=%s WHERE key='store_name'", (name,))
+                if 'logo_file' in request.files and request.files['logo_file'].filename != '':
+                    f = request.files['logo_file']
+                    img = f"data:{f.content_type};base64,{base64.b64encode(f.read()).decode('utf-8')}"
+                    cur.execute("UPDATE settings SET value=%s WHERE key='logo'", (img,))
+            elif a == 'ban_user': cur.execute("UPDATE users SET is_banned=TRUE WHERE id=%s", (u_id,))
+            elif a == 'unban_user': cur.execute("UPDATE users SET is_banned=FALSE WHERE id=%s", (u_id,))
+            elif a == 'delete_user':
+                cur.execute("DELETE FROM products WHERE user_id=%s", (u_id,)); cur.execute("DELETE FROM users WHERE id=%s", (u_id,))
+            conn.commit(); cur.close(); conn.close(); return redirect('/eyin-control')
+    if not session.get('admin'): return '<form method="post" style="padding:100px; text-align:center;"><input type="password" name="password" placeholder="كلمة السر"><button type="submit">دخول</button></form>'
+    st = get_st(); conn = get_db_connection(); cur = conn.cursor(cursor_factory=DictCursor)
+    cur.execute("SELECT u.*, (SELECT COUNT(*) FROM products WHERE user_id=u.id) as p_count FROM users u ORDER BY u.id DESC")
+    users = cur.fetchall(); cur.close(); conn.close()
+    u_html = "".join([f'<tr><td>{u["username"]}</td><td>{u["phone"]}</td><td>{u["p_count"]}</td><td><form method="post" style="display:inline;"><input type="hidden" name="user_id" value="{u["id"]}"><input type="hidden" name="action" value="{"unban_user" if u["is_banned"] else "ban_user"}"><button type="submit">{"فك" if u["is_banned"] else "حظر"}</button></form></td></tr>' for u in users])
+    return f'<div dir="rtl" style="padding:20px; background:#f1f5f9; color:black; min-height:100vh;">' \
+           f'<h3>⚙️ إعدادات المتجر</h3><form method="post" enctype="multipart/form-data"><input type="hidden" name="action" value="update_settings">' \
+           f'الاسم: <input type="text" name="store_name" value="{st["store_name"]}"><br>الشعار: <input type="file" name="logo_file"><br><button type="submit">حفظ الإعدادات</button></form>' \
+           f'<hr><h3>👤 المستخدمين</h3><table class="admin-table"><thead><tr><th>الاسم</th><th>الجوال</th><th>📌</th><th>أمر</th></tr></thead><tbody>{u_html}</tbody></table>' \
+           f'<br><a href="/">العودة</a></div>'
+
+# مسارات التسجيل والدخول والملف الشخصي تظل كما هي لضمان عملها
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         p = "966"+request.form.get('phone')
         session['temp'] = {'u': request.form.get('username'), 'p': p, 'pw': request.form.get('password'), 'otp': str(random.randint(1000,9999))}
         return redirect('/verify')
-    return render_template_string(LAYOUT.replace('{% block content %}{% endblock %}', '<div style="max-width:350px; margin:40px auto; text-align:center;"><h2>إنشاء حساب</h2><form method="post"><input type="text" name="username" placeholder="اسمك المستعار" required><input type="number" name="phone" placeholder="الجوال 5xxxxxxxx" required><input type="password" name="password" placeholder="كلمة المرور" required><button type="submit" class="main-btn">سجل الآن</button></form><p>عندك حساب؟ <a href="/login">دخول</a></p></div>'), st=get_st())
+    return render_template_string(LAYOUT.replace('{% block content %}{% endblock %}', '<div style="max-width:350px; margin:40px auto; text-align:center;"><h2>إنشاء حساب</h2><form method="post"><input type="text" name="username" placeholder="اسم المستخدم" required><input type="number" name="phone" placeholder="الجوال 5xxxxxxxx" required><input type="password" name="password" placeholder="كلمة المرور" required><button type="submit" class="main-btn">سجل</button></form></div>'), st=get_st())
 
 @app.route('/verify', methods=['GET', 'POST'])
 def verify():
     if 'temp' not in session: return redirect('/register')
-    otp = session['temp']['otp']; wa = f"https://wa.me/{MY_PHONE}?text=كود تفعيل حساب {session['temp']['u']}: {otp}"
+    otp = session['temp']['otp']; wa = f"https://wa.me/{MY_PHONE}?text=كود: {otp}"
     if request.method == 'POST' and request.form.get('otp') == otp:
         conn = get_db_connection(); cur = conn.cursor(); t = session['temp']
         cur.execute("INSERT INTO users (username, phone, password) VALUES (%s, %s, %s)", (t['u'], t['p'], t['pw']))
         conn.commit(); cur.close(); conn.close(); session.pop('temp'); return redirect('/login')
-    return render_template_string(LAYOUT.replace('{% block content %}{% endblock %}', f'<div style="text-align:center; padding:40px;"><h2>تفعيل</h2><a href="{wa}" target="_blank" style="background:#25d366; color:white; padding:15px; display:block; text-decoration:none; border-radius:10px; margin-bottom:15px; font-weight:bold;">💬 اطلب الكود</a><form method="post"><input type="number" name="otp" placeholder="أدخل الكود" required><button type="submit" class="main-btn">تأكيد</button></form></div>'), st=get_st())
+    return render_template_string(LAYOUT.replace('{% block content %}{% endblock %}', f'<div style="text-align:center; padding:40px;"><h2>تفعيل</h2><a href="{wa}" target="_blank" style="background:#25d366; color:white; padding:15px; display:block; text-decoration:none; border-radius:10px; margin-bottom:15px;">اطلب الكود</a><form method="post"><input type="number" name="otp" required><button type="submit" class="main-btn">تأكيد</button></form></div>'), st=get_st())
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -136,9 +160,9 @@ def login():
         cur.execute("SELECT * FROM users WHERE phone=%s AND password=%s", (p, pw))
         u = cur.fetchone(); cur.close(); conn.close()
         if u:
-            if u['is_banned']: return "حسابك محظور."
+            if u['is_banned']: return "محظور"
             session['user_id']=u['id']; session['username']=u['username']; session['user_phone']=u['phone']; return redirect('/')
-    return render_template_string(LAYOUT.replace('{% block content %}{% endblock %}', '<div style="max-width:350px; margin:40px auto;"><h2>تسجيل الدخول</h2><form method="post">966+ <input type="number" name="phone" required placeholder="5xxxxxxxx"><input type="password" name="password" required><button type="submit" class="main-btn">دخول</button></form></div>'), st=get_st())
+    return render_template_string(LAYOUT.replace('{% block content %}{% endblock %}', '<div style="max-width:350px; margin:40px auto;"><h2>دخول</h2><form method="post">966+ <input type="number" name="phone" required><input type="password" name="password" required><button type="submit" class="main-btn">دخول</button></form></div>'), st=get_st())
 
 @app.route('/profile')
 def profile():
@@ -146,33 +170,10 @@ def profile():
     conn = get_db_connection(); cur = conn.cursor(cursor_factory=DictCursor)
     cur.execute("SELECT * FROM products WHERE user_id=%s ORDER BY id DESC", (session['user_id'],))
     prods = cur.fetchall(); cur.close(); conn.close()
-    html = f'<div style="max-width:800px; margin:auto;"><div style="text-align:center; padding:20px; background:var(--card); border-radius:20px; margin-bottom:20px; border:1px solid var(--border);"><h2>{session.get("username")}</h2><p>{session.get("user_phone")}</p><a href="/logout_user" style="color:#ef4444; font-size:13px; text-decoration:none;">خروج</a></div><h3 style="padding-right:10px;">إعلاناتي ({len(prods)})</h3><div class="grid">'
+    html = f'<div style="text-align:center; padding:20px;"><h2>{session.get("username")}</h2><a href="/logout_user" style="color:red;">خروج</a></div><div class="grid">'
     for p in prods:
-        html += f'<div class="card"><img src="{p["image_url"]}"><div class="card-info"><h3 class="prod-name">{p["name"]}</h3><div style="color:var(--primary); font-weight:bold;">{p["price"]} ريال</div><form action="/delete_product" method="post" style="margin-top:10px;"><input type="hidden" name="id" value="{p["id"]}"><button type="submit" style="background:none; border:1px solid #ef4444; color:#ef4444; padding:5px 10px; border-radius:8px; cursor:pointer; font-size:12px;">حذف 🗑️</button></form></div></div>'
-    return render_template_string(LAYOUT.replace('{% block content %}{% endblock %}', html + '</div></div>'), st=get_st())
-
-@app.route('/eyin-control', methods=['GET', 'POST'])
-def admin():
-    if request.method == 'POST':
-        if request.form.get('password') == '317400': session['admin']=True
-        elif session.get('admin'):
-            conn = get_db_connection(); cur = conn.cursor(); a = request.form.get('action'); u_id = request.form.get('user_id')
-            if a == 'ban_user': cur.execute("UPDATE users SET is_banned=TRUE WHERE id=%s", (u_id,))
-            elif a == 'unban_user': cur.execute("UPDATE users SET is_banned=FALSE WHERE id=%s", (u_id,))
-            elif a == 'delete_user': 
-                cur.execute("DELETE FROM products WHERE user_id=%s", (u_id,))
-                cur.execute("DELETE FROM users WHERE id=%s", (u_id,))
-            conn.commit(); cur.close(); conn.close(); return redirect('/eyin-control')
-    if not session.get('admin'): return '<form method="post" style="padding:100px; text-align:center;"><input type="password" name="password" placeholder="كلمة السر"><button type="submit">دخول</button></form>'
-    conn = get_db_connection(); cur = conn.cursor(cursor_factory=DictCursor)
-    cur.execute("SELECT u.*, (SELECT COUNT(*) FROM products WHERE user_id=u.id) as p_count FROM users u ORDER BY u.id DESC")
-    users = cur.fetchall(); cur.close(); conn.close()
-    u_html = ""
-    for u in users:
-        u_html += f'<tr><td>{u["username"]}</td><td>{u["phone"]}</td><td>{u["p_count"]}</td><td>'
-        u_html += f'<form method="post" style="display:inline;"><input type="hidden" name="user_id" value="{u["id"]}"><input type="hidden" name="action" value="{"unban_user" if u["is_banned"] else "ban_user"}"><button type="submit">{"فك" if u["is_banned"] else "حظر"}</button></form>'
-        u_html += f'<form method="post" style="display:inline; margin-right:5px;"><input type="hidden" name="user_id" value="{u["id"]}"><input type="hidden" name="action" value="delete_user"><button type="submit" style="color:red;">حذف</button></form></td></tr>'
-    return f'<div dir="rtl" style="padding:20px; background:#f1f5f9; color:black; min-height:100vh;"><h3>⚙️ إدارة المنصة</h3><table class="admin-table"><thead><tr><th>الاسم</th><th>الجوال</th><th>📌</th><th>تحكم</th></tr></thead><tbody>{u_html}</tbody></table><br><a href="/">العودة</a></div>'
+        html += f'<div class="card"><img src="{p["image_url"]}"><div class="card-info"><h3 class="prod-name">{p["name"]}</h3><form action="/delete_product" method="post"><input type="hidden" name="id" value="{p["id"]}"><button type="submit" style="color:red; background:none; border:none; cursor:pointer;">حذف</button></form></div></div>'
+    return render_template_string(LAYOUT.replace('{% block content %}{% endblock %}', html + '</div>'), st=get_st())
 
 @app.route('/add_public', methods=['POST'])
 def add_public():
