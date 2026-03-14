@@ -6,7 +6,7 @@ app = Flask(__name__)
 app.secret_key = "eyin_master_v63_final"
 
 # !!! ضع رقمك هنا للتحقق !!!
-MY_PHONE = "966550963174" 
+MY_PHONE = "966550963174"  
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
