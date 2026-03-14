@@ -139,7 +139,7 @@ def login():
         if u:
             if u.get('is_banned'): return "محظور"
             session['user_id']=u['id']; session['username']=u['username']; session['user_phone']=u['phone']; return redirect('/')
-    return render_template_string(LAYOUT.replace('{% block content %}{% endblock %}', '<div style="max-width:350px; margin:40px auto; text-align:center;"><h2>دخول</h2><form method="post">966+ <input type="number" name="phone" required><input type="password" name="password" required><button type="submit" class="main-btn">دخول</button></form><p><a href="/register" class="auth-link">اشتراك</a></p></div>'), st=get_st())
+    return render_template_string(LAYOUT.replace('{% block content %}{% endblock %}', '<div style="max-width:350px; margin:40px auto; text-align:center;"><h2>تسجيل دخول</h2><form method="post">966+ <input type="number" name="phone" required><input type="password" name="password" required><button type="submit" class="main-btn">دخول</button></form><p><a href="/register" class="auth-link">اشتراك</a></p></div>'), st=get_st())
 
 @app.route('/verify', methods=['GET', 'POST'])
 def verify():
