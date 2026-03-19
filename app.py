@@ -141,7 +141,7 @@ def register():
         '<div style="max-width:350px; margin:40px auto; text-align:center;">'
         '<h2>إنشاء حساب</h2>'
         '<form method="post"><input type="text" name="username" placeholder="الاسم" required><input type="number" name="phone" placeholder="الجوال (5xxxxxxxx)" required><input type="password" name="password" placeholder="كلمة المرور" required><button type="submit" class="main-btn">اشتراك</button></form>'
-        '<a href="/login" class="auth-link">عندك حساب مسبق؟ سجل دخول من هنا</a>'
+        '<a href="/login" class="auth-link">عندك حساب؟ سجل دخول</a>'
         '</div>'), st=get_st())
 
 @app.route('/login', methods=['GET', 'POST'])
