@@ -4,14 +4,32 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    # الحروف العربية
+    # ترتيب الحروف لتناسب شكل السداسي الكبير (3, 4, 5, 6, 5, 4, 1) = 28 حرفاً
+    # هذا الترتيب يوزع الحروف العربية الـ 28 على شكل سداسي متناسق
     letters = [
-        "أ", "ب", "ت", "ث", "ج", "ح", "خ", "د", "ذ", "ر", "ز", "س", "ش", "ص",
-        "ض", "ط", "ظ", "ع", "غ", "ف", "ق", "ك", "ل", "م", "ن", "هـ", "و", "ي"
+        "أ", "ب", "ت", 
+        "ث", "ج", "ح", "خ", 
+        "د", "ذ", "ر", "ز", "س", 
+        "ش", "ص", "ض", "ط", "ظ", "ع",
+        "غ", "ف", "ق", "ك", "ل",
+        "م", "ن", "هـ", "و",
+        "ي"
     ]
     
-    # إنشاء الخلايا
-    cells_html = "".join([f'<div class="hb-item"><span>{l}</span></div>' for l in letters])
+    # توزيع الحروف على الصفوف لعمل الشكل السداسي الكبير
+    rows = [3, 4, 5, 6, 5, 4, 1] 
+    letters_iter = iter(letters)
+    grid_html = ""
+    
+    for count in rows:
+        grid_html += '<div class="hex-row">'
+        for _ in range(count):
+            try:
+                char = next(letters_iter)
+                grid_html += f'<div class="hex"><span>{char}</span></div>'
+            except StopIteration:
+                break
+        grid_html += '</div>'
 
     html_content = f"""
     <!DOCTYPE html>
@@ -20,71 +38,61 @@ def home():
         <meta charset="UTF-8">
         <style>
             body {{
-                background-color: #4B0082; /* خلفية بنفسجي غامق */
+                background-color: #4B0082;
                 display: flex;
                 justify-content: center;
                 align-items: center;
                 min-height: 100vh;
                 margin: 0;
             }}
-            .hb-container {{
+            .main-container {{
                 display: flex;
-                flex-wrap: wrap;
-                width: 600px; /* يمكنك تكبير العرض لزيادة عدد الخلايا في الصف */
-                padding-left: 50px;
+                flex-direction: column;
+                align-items: center;
             }}
-            .hb-item {{
-                position: relative;
-                width: 100px; 
-                height: 115px;
-                background-color: #8A2BE2; /* لون الخلية */
+            .hex-row {{
+                display: flex;
+                justify-content: center;
+                margin-top: -26px; /* لتداخل الصفوف رأسياً */
+            }}
+            .hex {{
+                width: 100px;
+                height: 110px;
+                background-color: #8A2BE2;
                 margin: 2px;
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 display: flex;
                 justify-content: center;
                 align-items: center;
-                transition: 0.3s;
-                border: 4px solid white; /* حدود بيضاء (تظهر بسبب الـ clip-path كأطراف) */
+                position: relative;
             }}
-            /* إضافة إطار أبيض داخلي للمحاكاة */
-            .hb-item::after {{
+            /* رسم الإطار الأبيض النحيف */
+            .hex::before {{
                 content: "";
                 position: absolute;
-                inset: 5px;
-                background: inherit;
-                clip-path: inherit;
+                width: 92%;
+                height: 92%;
+                background-color: #8A2BE2;
+                clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 z-index: 1;
             }}
-            .hb-item span {{
+            /* تلوين الأطراف باللون الأبيض */
+            .hex {{
+                background-color: white; 
+            }}
+            .hex span {{
                 position: relative;
                 z-index: 2;
                 color: white;
-                font-size: 40px;
+                font-size: 35px;
                 font-weight: bold;
                 font-family: Arial;
-            }}
-            /* سر التداخل: إزاحة الصفوف الزوجية */
-            .hb-container {{
-                display: grid;
-                grid-template-columns: repeat(5, 105px); /* 5 خلايا في كل صف */
-                grid-gap: 5px;
-            }}
-            .hb-item:nth-child(10n+6), 
-            .hb-item:nth-child(10n+7), 
-            .hb-item:nth-child(10n+8), 
-            .hb-item:nth-child(10n+9), 
-            .hb-item:nth-child(10n+10) {{
-                transform: translateX(55px); /* إزاحة الصف الثاني */
-                margin-top: -30px; /* رفع الصف للأعلى ليحدث التداخل */
-            }}
-            .hb-item:nth-child(n+6) {{
-                margin-top: -30px; /* تداخل جميع الصفوف بعد الأول */
             }}
         </style>
     </head>
     <body>
-        <div class="hb-container">
-            {cells_html}
+        <div class="main-container">
+            {grid_html}
         </div>
     </body>
     </html>
