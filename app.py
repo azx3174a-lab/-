@@ -4,6 +4,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
+    # الحروف العربية بنفس الترتيب 5، 5، 5، 5، 5، 3
     letters = [
         "أ", "ب", "ت", "ث", "ج",
         "ح", "خ", "د", "ذ", "ر",
@@ -42,12 +43,12 @@ def home():
                 margin: 0;
             }}
             
-            /* الإطار السداسي الكبير - ضبط الحجم ليتناسب مع المحتوى */
+            /* تكبير الإطار السداسي الكبير ليعطي مساحة أوسع */
             .outer-hex-frame {{
                 position: relative;
-                width: 600px; /* زيادة العرض */
-                height: 600px; /* زيادة الارتفاع */
-                background-color: white; /* لون الإطار الأبيض */
+                width: 680px; /* تم التكبير من 600 إلى 680 */
+                height: 680px; 
+                background-color: white; 
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 display: flex;
                 justify-content: center;
@@ -57,7 +58,7 @@ def home():
             .outer-hex-frame::before {{
                 content: "";
                 position: absolute;
-                inset: 10px; /* سمك الإطار الأبيض */
+                inset: 12px; /* إطار أبيض واضح */
                 background-color: #8A2BE2;
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 z-index: 0;
@@ -69,9 +70,9 @@ def home():
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                /* إزاحة خفيفة لليسار لتعويض الـ transform الخاص بالصفوف */
-                padding-right: 40px; 
-                margin-top: 20px;
+                /* تعديل الـ padding لزحف الحروف "حبتين يمين" لوسط الإطار */
+                padding-right: 10px; 
+                margin-top: 10px;
             }}
             
             .hex-row {{
@@ -80,6 +81,7 @@ def home():
                 margin-top: -24px; 
             }}
             
+            /* إزاحة الصفوف الزوجية لليسار لتركب في الفراغات */
             .hex-row:nth-child(even) {{
                 transform: translateX(-43px); 
             }}
@@ -112,7 +114,7 @@ def home():
                 color: white;
                 font-size: 28px;
                 font-weight: bold;
-                font-family: Arial;
+                font-family: Arial, sans-serif;
             }}
         </style>
     </head>
