@@ -4,19 +4,19 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    # الحروف العربية بالترتيب والتوزيع الذي حددته
+    # الحروف العربية مقسمة حسب طلبك بالضبط
+    # الصفوف: 5، 5، 5، 5، 5، 3 (المجموع 28)
     letters = [
-        "أ", "ب", 
-        "ت", "ث", "ج", 
-        "ح", "خ", "د", "ذ", 
-        "ر", "ز", "س", "ش", "ص", 
-        "ض", "ط", "ظ", "ع", "غ", "ف", 
-        "ق", "ك", "ل", "م", "ن", 
+        "أ", "ب", "ت", "ث", "ج",
+        "ح", "خ", "د", "ذ", "ر",
+        "ز", "س", "ش", "ص", "ض",
+        "ط", "ظ", "ع", "غ", "ف",
+        "ق", "ك", "ل", "م", "ن",
         "هـ", "و", "ي"
     ]
     
-    # التوزيع: صف 2، ثم 3، ثم 4، ثم 5، ثم 6، ثم 5، ثم 3 (المجموع 28)
-    rows_distribution = [2, 3, 4, 5, 6, 5, 3]
+    # توزيع الصفوف: خمسات وفي الأخير ثلاثة
+    rows_distribution = [5, 5, 5, 5, 5, 3]
     
     letters_iter = iter(letters)
     grid_html = ""
@@ -36,33 +36,34 @@ def home():
     <html dir="rtl" lang="ar">
     <head>
         <meta charset="UTF-8">
-        <title>خلية الحروف العربية</title>
         <style>
             body {{
-                background-color: #4B0082; /* لون الخلفية العام بنفسجي غامق */
+                background-color: #4B0082; /* لون بنفسجي غامق للخلفية */
                 display: flex;
                 justify-content: center;
                 align-items: center;
                 min-height: 100vh;
                 margin: 0;
-                font-family: 'Arial', sans-serif;
             }}
             .main-container {{
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                padding: 20px;
             }}
             .hex-row {{
                 display: flex;
                 justify-content: center;
-                margin-top: -22px; /* هذا السطر هو سر تداخل الخلايا بشكل سداسي */
+                margin-top: -15px; /* تداخل خفيف ليعطي مظهر خلية النحل */
+            }}
+            /* الصفوف الزوجية تدخل قليلاً بين الخلايا (اختياري لشكل الخلية) */
+            .hex-row:nth-child(even) {{
+                transform: translateX(0px); 
             }}
             .hex {{
                 width: 80px;
-                height: 92px;
-                background-color: white; /* لون الإطار (الأطراف البيضاء) */
-                margin: 2px;
+                height: 90px;
+                background-color: white; /* الإطار الأبيض */
+                margin: 5px;
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 display: flex;
                 justify-content: center;
@@ -72,9 +73,9 @@ def home():
             .hex::before {{
                 content: "";
                 position: absolute;
-                width: 90%; /* حجم اللون الداخلي مقارنة بالإطار الأبيض */
+                width: 90%;
                 height: 90%;
-                background-color: #8A2BE2; /* اللون البنفسجي الأساسي للخلية */
+                background-color: #8A2BE2; /* اللون البنفسجي للخلية */
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 z-index: 1;
             }}
@@ -84,12 +85,7 @@ def home():
                 color: white;
                 font-size: 28px;
                 font-weight: bold;
-            }}
-            /* تحسين العرض على الجوال */
-            @media (max-width: 500px) {{
-                .hex {{ width: 50px; height: 58px; }}
-                .hex span {{ font-size: 18px; }}
-                .hex-row {{ margin-top: -14px; }}
+                font-family: Arial, sans-serif;
             }}
         </style>
     </head>
