@@ -11,7 +11,7 @@ import requests
 app = Flask(__name__)
 app.secret_key = "super_secret_key_123" # مفتاح لتشفير الجلسة
 DB_NAME = "database.db"
-ADMIN_PASSWORD = "123" # <--- غير كلمة المرور هنا
+ADMIN_PASSWORD = "3174" # <--- غير كلمة المرور هنا
 
 # --- 1. إعداد قاعدة البيانات ---
 def init_db():
