@@ -4,7 +4,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    # الحروف العربية بنفس الترتيب 5، 5، 5، 5، 5، 3
+    # الحروف العربية بنفس الترتيب والتوزيع 5، 5، 5، 5، 5، 3
     letters = [
         "أ", "ب", "ت", "ث", "ج",
         "ح", "خ", "د", "ذ", "ر",
@@ -23,7 +23,8 @@ def home():
         for _ in range(count):
             try:
                 char = next(letters_iter)
-                grid_html += f'<div class="hex"><span>{char}</span></div>'
+                # إضافة كلاس skew لإمالة الخلايا
+                grid_html += f'<div class="hex skew"><span>{char}</span></div>'
             except StopIteration:
                 break
         grid_html += '</div>'
@@ -43,22 +44,24 @@ def home():
                 margin: 0;
             }}
             
-            /* تكبير الإطار السداسي الكبير ليعطي مساحة أوسع */
+            /* الإطار السداسي الكبير - تم إضافة margin-top سالبة لرفعه للأعلى */
             .outer-hex-frame {{
                 position: relative;
-                width: 680px; /* تم التكبير من 600 إلى 680 */
+                width: 680px; 
                 height: 680px; 
                 background-color: white; 
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 display: flex;
                 justify-content: center;
                 align-items: center;
+                /* رفعه للأعلى "حبتين" */
+                margin-top: -50px; 
             }}
             
             .outer-hex-frame::before {{
                 content: "";
                 position: absolute;
-                inset: 12px; /* إطار أبيض واضح */
+                inset: 12px; 
                 background-color: #8A2BE2;
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 z-index: 0;
@@ -70,9 +73,8 @@ def home():
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                /* تعديل الـ padding لزحف الحروف "حبتين يمين" لوسط الإطار */
-                padding-right: 10px; 
-                margin-top: 10px;
+                padding-left: 45px; 
+                margin-top: 15px;
             }}
             
             .hex-row {{
@@ -81,7 +83,6 @@ def home():
                 margin-top: -24px; 
             }}
             
-            /* إزاحة الصفوف الزوجية لليسار لتركب في الفراغات */
             .hex-row:nth-child(even) {{
                 transform: translateX(-43px); 
             }}
@@ -96,6 +97,18 @@ def home():
                 justify-content: center;
                 align-items: center;
                 position: relative;
+                /* إضافة انتقال سلس للإمالة */
+                transition: transform 0.3s ease; 
+            }}
+            
+            /* كلاس جديد لإمالة الخلايا لليمين درجة واحدة */
+            .hex.skew {{
+                transform: skewX(-1deg); /* إمالة سالبة لليمين */
+            }}
+            
+            /* الحفاظ على استقامة الحرف داخل الخلية المائلة */
+            .hex.skew span {{
+                transform: skewX(1deg); /* إمالة معاكسة للحرف */
             }}
             
             .hex::before {{
@@ -112,9 +125,10 @@ def home():
                 position: relative;
                 z-index: 2;
                 color: white;
-                font-size: 28px;
+                font-size: 30px;
                 font-weight: bold;
                 font-family: Arial, sans-serif;
+                display: block; /* لضمان عمل التحويل */
             }}
         </style>
     </head>
