@@ -4,7 +4,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    # الحروف العربية بالترتيب الذي طلبته
+    # الحروف العربية بالترتيب والتوزيع الذي حددته
     letters = [
         "أ", "ب", 
         "ت", "ث", "ج", 
@@ -15,7 +15,7 @@ def home():
         "هـ", "و", "ي"
     ]
     
-    # التوزيع الذي اقترحته: صف بـ 2، ثم 3، ثم 4، ثم 5، ثم 6، ثم 5، ثم 3 = 28 حرفاً
+    # التوزيع: صف 2، ثم 3، ثم 4، ثم 5، ثم 6، ثم 5، ثم 3 (المجموع 28)
     rows_distribution = [2, 3, 4, 5, 6, 5, 3]
     
     letters_iter = iter(letters)
@@ -36,15 +36,16 @@ def home():
     <html dir="rtl" lang="ar">
     <head>
         <meta charset="UTF-8">
+        <title>خلية الحروف العربية</title>
         <style>
             body {{
-                background-color: #4B0082;
+                background-color: #4B0082; /* لون الخلفية العام بنفسجي غامق */
                 display: flex;
                 justify-content: center;
                 align-items: center;
                 min-height: 100vh;
                 margin: 0;
-                overflow: hidden;
+                font-family: 'Arial', sans-serif;
             }}
             .main-container {{
                 display: flex;
@@ -55,12 +56,12 @@ def home():
             .hex-row {{
                 display: flex;
                 justify-content: center;
-                margin-top: -28px; /* تداخل الصفوف لضبط شكل خلية النحل */
+                margin-top: -22px; /* هذا السطر هو سر تداخل الخلايا بشكل سداسي */
             }}
             .hex {{
-                width: 90px;
-                height: 100px;
-                background-color: white; /* اللون الأبيض للأطراف */
+                width: 80px;
+                height: 92px;
+                background-color: white; /* لون الإطار (الأطراف البيضاء) */
                 margin: 2px;
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 display: flex;
@@ -71,9 +72,9 @@ def home():
             .hex::before {{
                 content: "";
                 position: absolute;
-                width: 90%;
+                width: 90%; /* حجم اللون الداخلي مقارنة بالإطار الأبيض */
                 height: 90%;
-                background-color: #8A2BE2; /* اللون البنفسجي للداخل */
+                background-color: #8A2BE2; /* اللون البنفسجي الأساسي للخلية */
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 z-index: 1;
             }}
@@ -81,9 +82,14 @@ def home():
                 position: relative;
                 z-index: 2;
                 color: white;
-                font-size: 30px;
+                font-size: 28px;
                 font-weight: bold;
-                font-family: 'Arial', sans-serif;
+            }}
+            /* تحسين العرض على الجوال */
+            @media (max-width: 500px) {{
+                .hex {{ width: 50px; height: 58px; }}
+                .hex span {{ font-size: 18px; }}
+                .hex-row {{ margin-top: -14px; }}
             }}
         </style>
     </head>
