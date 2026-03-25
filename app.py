@@ -4,7 +4,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    # الحروف العربية بنفس الترتيب 5، 5، 5، 5، 5، 3
+    # الحروف العربية بنفس الترتيب والتوزيع
     letters = [
         "أ", "ب", "ت", "ث", "ج",
         "ح", "خ", "د", "ذ", "ر",
@@ -14,6 +14,7 @@ def home():
         "هـ", "و", "ي"
     ]
     
+    # التوزيع: 5، 5، 5، 5، 5، 3
     rows_distribution = [5, 5, 5, 5, 5, 3]
     letters_iter = iter(letters)
     grid_html = ""
@@ -33,36 +34,62 @@ def home():
     <html dir="rtl" lang="ar">
     <head>
         <meta charset="UTF-8">
+        <title>خلية الحروف الكبرى</title>
         <style>
             body {{
-                background-color: #4B0082;
+                background-color: #4B0082; /* خلفية الصفحة */
                 display: flex;
                 justify-content: center;
                 align-items: center;
                 min-height: 100vh;
                 margin: 0;
             }}
+            
+            /* الحاوية الخارجية الجديدة لعمل الإطار السداسي الكبير */
+            .outer-hex-frame {{
+                position: relative;
+                padding: 40px; /* مسافة الإطار عن الحروف */
+                background-color: white; /* لون الإطار الكبير */
+                /* قص الحاوية الخارجية لتصبح سداسية */
+                clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }}
+            
+            /* خلفية داخلية بنفسجية للإطار الكبير */
+            .outer-hex-frame::before {{
+                content: "";
+                position: absolute;
+                inset: 15px; /* سمك الإطار الكبير */
+                background-color: #8A2BE2; /* نفس لون الخلايا الصغيرة */
+                clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+                z-index: 0;
+            }}
+            
+            /* الحاوية الأصلية للحروف */
             .main-container {{
+                position: relative;
+                z-index: 1; /* فوق الخلفية البنفسجية للإطار */
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                padding-bottom: 50px;
+                padding: 10px;
             }}
+            
+            /* تنسيق الصفوف والخلايا الصغيرة (نفس الكود السابق) */
             .hex-row {{
                 display: flex;
                 justify-content: center;
-                margin-top: -24px; /* تداخل رأسي لغلق الفراغات */
+                margin-top: -24px; 
             }}
-            
-            /* إزاحة الصفوف الزوجية لليسار (قيمة سالبة) لتركب في الفراغات */
             .hex-row:nth-child(even) {{
                 transform: translateX(-43px); 
             }}
-            
             .hex {{
                 width: 80px;
                 height: 92px;
-                background-color: white; /* الإطار الأبيض */
+                background-color: white;
                 margin: 3px;
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 display: flex;
@@ -75,7 +102,7 @@ def home():
                 position: absolute;
                 width: 90%;
                 height: 90%;
-                background-color: #8A2BE2; /* اللون البنفسجي */
+                background-color: #8A2BE2;
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 z-index: 1;
             }}
@@ -90,8 +117,10 @@ def home():
         </style>
     </head>
     <body>
-        <div class="main-container">
-            {grid_html}
+        <div class="outer-hex-frame">
+            <div class="main-container">
+                {grid_html}
+            </div>
         </div>
     </body>
     </html>
