@@ -5,22 +5,23 @@ import requests
 
 app = Flask(__name__)
 
-# وظيفة النغز الذاتي لضمان عدم نوم السيرفر
+# --- 1. وظيفة النغز الذاتي (Self-Ping) ---
 def keep_alive():
+    # الرابط الخاص بك كما طلبته
     url = "https://eyin.onrender.com"
     while True:
         try:
-            # إرسال طلب للموقع كل 180 ثانية
-            requests.get(url)
-            print("Ping successful: Site is awake.")
+            # نغز الموقع كل 180 ثانية (3 دقائق)
+            requests.get(url, timeout=10)
+            print("Ping successful: Site is active.")
         except Exception as e:
             print(f"Ping failed: {e}")
         
-        # الانتظار لمدة 180 ثانية (3 دقائق)
         time.sleep(180)
 
 @app.route('/')
 def home():
+    # --- 2. ترتيب الحروف والتوزيع ---
     letters = [
         "أ", "ب", "ت", "ث", "ج",
         "ح", "خ", "د", "ذ", "ر",
@@ -30,6 +31,7 @@ def home():
         "هـ", "و", "ي"
     ]
     
+    # توزيع الصفوف: 5، 5، 5، 5، 5، 3
     rows_distribution = [5, 5, 5, 5, 5, 3]
     letters_iter = iter(letters)
     grid_html = ""
@@ -44,87 +46,99 @@ def home():
                 break
         grid_html += '</div>'
 
+    # --- 3. التصميم (CSS) الموزون بدقة ---
     html_content = f"""
     <!DOCTYPE html>
     <html dir="rtl" lang="ar">
     <head>
         <meta charset="UTF-8">
+        <title>Eyin Hex Grid</title>
         <style>
-            :root {{
-                --hex-width: 80px;
-                --hex-height: 92px;
-                --hex-color: #8A2BE2;
-            }}
             body {{
                 background-color: #4B0082;
                 display: flex;
-                flex-direction: column;
                 justify-content: center;
                 align-items: center;
                 min-height: 100vh;
                 margin: 0;
+                overflow: hidden; /* يمنع ظهور أشرطة التمرير */
             }}
+            
+            /* الإطار الكبير: مطاطي يتبع حجم الحروف */
             .outer-frame {{
                 position: relative;
-                padding: 60px 80px;
+                display: inline-flex;
+                flex-direction: column;
+                align-items: center;
+                padding: 80px 100px; /* مساحة أمان لمنع خروج الحروف */
                 background-color: white;
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                margin-top: -100px;
+                margin-top: -60px; /* رفع الإطار للأعلى */
             }}
+            
+            /* الطبقة البنفسجية داخل الإطار الكبير */
             .outer-frame::before {{
                 content: "";
                 position: absolute;
-                inset: 10px;
+                inset: 12px; /* سمك الإطار الأبيض الخارجي */
                 background-color: #8A2BE2;
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 z-index: 0;
             }}
+            
+            /* الحاوية الداخلية موزونة لتعويض الإزاحة */
             .main-container {{
                 position: relative;
                 z-index: 1;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
+                padding-left: 43px; /* موازنة إزاحة الصفوف الزوجية بدقة */
             }}
+            
             .hex-row {{
                 display: flex;
                 justify-content: center;
-                margin-top: -24px;
+                margin-top: -24px; /* تداخل الخلايا رأسياً */
             }}
+            
+            /* إزاحة الصفوف الزوجية (الثاني، الرابع، السادس) */
             .hex-row:nth-child(even) {{
                 transform: translateX(-43px);
             }}
+            
+            /* تنسيق السداسي الصغير */
             .hex {{
-                width: var(--hex-width);
-                height: var(--hex-height);
-                background-color: white;
+                width: 80px;
+                height: 92px;
+                background-color: white; /* إطار الخلية الصغير */
                 margin: 3px;
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 display: flex;
                 justify-content: center;
                 align-items: center;
                 position: relative;
-                transform: skewX(-5deg);
+                transform: skewX(-5deg); /* الإمالة لليمين كما طلبت */
             }}
+            
             .hex::before {{
                 content: "";
                 position: absolute;
                 width: 90%;
                 height: 90%;
-                background-color: var(--hex-color);
+                background-color: #8A2BE2; /* قلب الخلية البنفسجي */
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 z-index: 1;
             }}
+            
             .hex span {{
                 position: relative;
                 z-index: 2;
                 color: white;
-                font-size: 28px;
+                font-size: 30px;
                 font-weight: bold;
-                transform: skewX(5deg);
+                font-family: Arial, sans-serif;
+                transform: skewX(5deg); /* تعديل ميل الحرف ليبقى مستقيماً */
                 display: block;
             }}
         </style>
@@ -141,6 +155,7 @@ def home():
     return html_content
 
 if __name__ == "__main__":
-    # بدء خيط النغز في الخلفية عند تشغيل التطبيق
+    # تشغيل النغز الذاتي في الخلفية
     threading.Thread(target=keep_alive, daemon=True).start()
+    # تشغيل السيرفر
     app.run(host='0.0.0.0', port=8080)
