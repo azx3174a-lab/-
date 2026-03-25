@@ -1,11 +1,11 @@
-from flask import Flask
+from flask import Flask, render_template_string
 import threading
 import time
 import requests
 
 app = Flask(__name__)
 
-# نغز ذاتي كل 180 ثانية
+# نغز ذاتي (Keep-alive) عشان ما ينام المتجر
 def keep_alive():
     url = "https://eyin.onrender.com"
     while True:
@@ -15,138 +15,54 @@ def keep_alive():
             pass
         time.sleep(180)
 
-@app.route('/')
-def home():
-    letters = [
-        "أ", "ب", "ت", "ث", "ج",
-        "ح", "خ", "د", "ذ", "ر",
-        "ز", "س", "ش", "ص", "ض",
-        "ط", "ظ", "ع", "غ", "ف",
-        "ق", "ك", "ل", "م", "ن",
-        "هـ", "و", "ي"
-    ]
-    
-    rows_distribution = [5, 5, 5, 5, 5, 3]
-    letters_iter = iter(letters)
-    grid_html = ""
-    
-    for count in rows_distribution:
-        grid_html += '<div class="hex-row">'
-        for _ in range(count):
-            try:
-                char = next(letters_iter)
-                grid_html += f'<div class="hex"><span>{char}</span></div>'
-            except StopIteration:
-                break
-        grid_html += '</div>'
+# بيانات المنتجات (تقدر تعدلها براحتك)
+products = [
+    {"id": 1, "name": "منتج 1", "price": "100 SAR", "img": "https://via.placeholder.com/150"},
+    {"id": 2, "name": "منتج 2", "price": "200 SAR", "img": "https://via.placeholder.com/150"},
+    {"id": 3, "name": "منتج 3", "price": "150 SAR", "img": "https://via.placeholder.com/150"},
+]
 
-    html_content = f"""
+@app.route('/')
+def index():
+    html_template = """
     <!DOCTYPE html>
     <html dir="rtl" lang="ar">
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>متجري الإلكتروني</title>
         <style>
-            body {{
-                background-color: #4B0082;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                min-height: 100vh;
-                margin: 0;
-                font-family: sans-serif;
-            }}
-
-            /* الإطار السداسي الكبير الموزون */
-            .outer-frame {{
-                position: relative;
-                padding: 80px 100px;
-                background-color: white;
-                /* شكل سداسي منتظم للإطار */
-                clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                margin-top: -40px;
-            }}
-
-            .outer-frame::before {{
-                content: "";
-                position: absolute;
-                inset: 12px;
-                background-color: #8A2BE2;
-                clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-                z-index: 0;
-            }}
-
-            .main-container {{
-                position: relative;
-                z-index: 1;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                /* موازنة الإزاحة الأفقية */
-                margin-right: -42px; 
-            }}
-
-            .hex-row {{
-                display: flex;
-                justify-content: center;
-                /* تداخل رأسي دقيق لركوب الزوايا */
-                margin-top: -22px; 
-            }}
-
-            .hex-row:nth-child(even) {{
-                /* إزاحة نصف عرض الخلية بالضبط */
-                transform: translateX(-43px); 
-            }}
-
-            /* الخلية السداسية الصغير */
-            .hex {{
-                width: 80px;
-                height: 92px;
-                background-color: white;
-                margin: 3px;
-                clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                position: relative;
-                /* ميل خفيف لليمين حبة واحدة */
-                transform: skewX(-2deg);
-            }}
-
-            .hex::before {{
-                content: "";
-                position: absolute;
-                width: 90%;
-                height: 90%;
-                background-color: #8A2BE2;
-                clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-                z-index: 1;
-            }}
-
-            .hex span {{
-                position: relative;
-                z-index: 2;
-                color: white;
-                font-size: 30px;
-                font-weight: bold;
-                /* عكس الميل للحرف ليظهر مستقيماً */
-                transform: skewX(2deg);
-                display: block;
-            }}
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; margin: 0; padding: 20px; }
+            header { text-align: center; padding: 20px; background: #8A2BE2; color: white; border-radius: 10px; margin-bottom: 30px; }
+            .container { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; max-width: 1200px; margin: auto; }
+            .product-card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; transition: 0.3s; }
+            .product-card:hover { transform: translateY(-5px); }
+            .product-card img { max-width: 100%; border-radius: 8px; }
+            .product-card h3 { color: #333; }
+            .product-card p { color: #8A2BE2; font-weight: bold; font-size: 1.2em; }
+            .buy-btn { background: #8A2BE2; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; text-decoration: none; }
+            .buy-btn:hover { background: #4B0082; }
         </style>
     </head>
     <body>
-        <div class="outer-frame">
-            <div class="main-container">
-                {grid_html}
+        <header>
+            <h1>مرحباً بك في متجرنا</h1>
+            <p>أفضل المنتجات بأفضل الأسعار</p>
+        </header>
+        <div class="container">
+            {% for product in products %}
+            <div class="product-card">
+                <img src="{{ product.img }}" alt="{{ product.name }}">
+                <h3>{{ product.name }}</h3>
+                <p>{{ product.price }}</p>
+                <button class="buy-btn">إضافة للسلة</button>
             </div>
+            {% endfor %}
         </div>
     </body>
     </html>
     """
-    return html_content
+    return render_template_string(html_template, products=products)
 
 if __name__ == "__main__":
     threading.Thread(target=keep_alive, daemon=True).start()
