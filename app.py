@@ -4,7 +4,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    # ترتيب الحروف المربع اللي طلبته أول (555553)
+    # الحروف العربية بنفس الترتيب
     letters = [
         "أ", "ب", "ت", "ث", "ج",
         "ح", "خ", "د", "ذ", "ر",
@@ -14,14 +14,13 @@ def home():
         "هـ", "و", "ي"
     ]
     
-    # التوزيع على الصفوف
+    # التوزيع: 5، 5، 5، 5، 5، 3
     rows_distribution = [5, 5, 5, 5, 5, 3]
     
     letters_iter = iter(letters)
     grid_html = ""
     
     for count in rows_distribution:
-        # نضيف كلاس hex-row لعنصر div الخاص بالصف
         grid_html += '<div class="hex-row">'
         for _ in range(count):
             try:
@@ -38,7 +37,7 @@ def home():
         <meta charset="UTF-8">
         <style>
             body {{
-                background-color: #4B0082; /* خلفية بنفسجي غامق */
+                background-color: #4B0082;
                 display: flex;
                 justify-content: center;
                 align-items: center;
@@ -49,47 +48,39 @@ def home():
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                /* إضافة حشوة للمحتوى لضمان عدم ملامسة الحواف */
-                padding: 20px;
+                padding-bottom: 50px;
             }}
             .hex-row {{
                 display: flex;
                 justify-content: center;
-                /* تقليل الهامش العلوي ليحدث تداخل رأسي */
-                margin-top: -24px; 
+                margin-top: -24px; /* تداخل رأسي */
             }}
             
-            /* سر التداخل: إزاحة الصفوف الزوجية (2, 4, 6) يساراً */
+            /* إزاحة الصفوف الزوجية (الثاني والرابع والسادس) لليمين بدلاً من اليسار لضبط السطر الأخير */
             .hex-row:nth-child(even) {{
-                transform: translateX(-40px); /* نصف عرض الخلية السداسية */
+                transform: translateX(45px); 
             }}
             
-            /* تنسيق السداسي الأساسي */
             .hex {{
                 width: 80px;
                 height: 92px;
-                background-color: white; /* لون الإطار البيضاء */
-                margin: 2px;
-                /* قص الشكل ليصبح سداسياً */
+                background-color: white; /* الإطار الأبيض */
+                margin: 4px;
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 display: flex;
                 justify-content: center;
                 align-items: center;
                 position: relative;
             }}
-            
-            /* اللون البنفسجي الداخلي */
             .hex::before {{
                 content: "";
                 position: absolute;
-                width: 90%; /* حجم اللون الداخلي مقارنة بالإطار الأبيض */
+                width: 90%;
                 height: 90%;
-                background-color: #8A2BE2; /* اللون البنفسجي للخلية */
+                background-color: #8A2BE2; /* اللون البنفسجي */
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 z-index: 1;
             }}
-            
-            /* تنسيق الحرف */
             .hex span {{
                 position: relative;
                 z-index: 2;
@@ -98,12 +89,6 @@ def home():
                 font-weight: bold;
                 font-family: Arial, sans-serif;
             }}
-            
-            /* تنسيق خاص للصف الأخير ليظهر بشكل جميل */
-            .hex-row:last-child {{
-                margin-left: 20px; /* موازنة إزاحة الصفوف الزوجية */
-            }}
-
         </style>
     </head>
     <body>
