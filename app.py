@@ -4,7 +4,6 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    # الحروف العربية بنفس الترتيب والتوزيع
     letters = [
         "أ", "ب", "ت", "ث", "ج",
         "ح", "خ", "د", "ذ", "ر",
@@ -14,7 +13,6 @@ def home():
         "هـ", "و", "ي"
     ]
     
-    # التوزيع: 5، 5، 5، 5، 5، 3
     rows_distribution = [5, 5, 5, 5, 5, 3]
     letters_iter = iter(letters)
     grid_html = ""
@@ -34,10 +32,9 @@ def home():
     <html dir="rtl" lang="ar">
     <head>
         <meta charset="UTF-8">
-        <title>خلية الحروف الكبرى</title>
         <style>
             body {{
-                background-color: #4B0082; /* خلفية الصفحة */
+                background-color: #4B0082;
                 display: flex;
                 justify-content: center;
                 align-items: center;
@@ -45,47 +42,48 @@ def home():
                 margin: 0;
             }}
             
-            /* الحاوية الخارجية الجديدة لعمل الإطار السداسي الكبير */
+            /* الإطار السداسي الكبير - ضبط الحجم ليتناسب مع المحتوى */
             .outer-hex-frame {{
                 position: relative;
-                padding: 40px; /* مسافة الإطار عن الحروف */
-                background-color: white; /* لون الإطار الكبير */
-                /* قص الحاوية الخارجية لتصبح سداسية */
+                width: 600px; /* زيادة العرض */
+                height: 600px; /* زيادة الارتفاع */
+                background-color: white; /* لون الإطار الأبيض */
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 display: flex;
                 justify-content: center;
                 align-items: center;
             }}
             
-            /* خلفية داخلية بنفسجية للإطار الكبير */
             .outer-hex-frame::before {{
                 content: "";
                 position: absolute;
-                inset: 15px; /* سمك الإطار الكبير */
-                background-color: #8A2BE2; /* نفس لون الخلايا الصغيرة */
+                inset: 10px; /* سمك الإطار الأبيض */
+                background-color: #8A2BE2;
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 z-index: 0;
             }}
             
-            /* الحاوية الأصلية للحروف */
             .main-container {{
                 position: relative;
-                z-index: 1; /* فوق الخلفية البنفسجية للإطار */
+                z-index: 1;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                padding: 10px;
+                /* إزاحة خفيفة لليسار لتعويض الـ transform الخاص بالصفوف */
+                padding-right: 40px; 
+                margin-top: 20px;
             }}
             
-            /* تنسيق الصفوف والخلايا الصغيرة (نفس الكود السابق) */
             .hex-row {{
                 display: flex;
                 justify-content: center;
                 margin-top: -24px; 
             }}
+            
             .hex-row:nth-child(even) {{
                 transform: translateX(-43px); 
             }}
+            
             .hex {{
                 width: 80px;
                 height: 92px;
@@ -97,6 +95,7 @@ def home():
                 align-items: center;
                 position: relative;
             }}
+            
             .hex::before {{
                 content: "";
                 position: absolute;
@@ -106,13 +105,14 @@ def home():
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 z-index: 1;
             }}
+            
             .hex span {{
                 position: relative;
                 z-index: 2;
                 color: white;
-                font-size: 30px;
+                font-size: 28px;
                 font-weight: bold;
-                font-family: Arial, sans-serif;
+                font-family: Arial;
             }}
         </style>
     </head>
