@@ -13,13 +13,16 @@ DB_NAME = "database.db"
 
 # --- 1. إعداد قاعدة البيانات ---
 def init_db():
-    with sqlite3.connect(DB_NAME) as conn:
-        conn.execute('''CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY, logo_url TEXT)''')
-        conn.execute('''CREATE TABLE IF NOT EXISTS products 
-                        (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, price TEXT, description TEXT, img_url TEXT)''')
-        if not conn.execute("SELECT * FROM settings").fetchone():
-            conn.execute("INSERT INTO settings (logo_url) VALUES ('https://via.placeholder.com/150')")
-        conn.commit()
+    try:
+        with sqlite3.connect(DB_NAME) as conn:
+            conn.execute('''CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY, logo_url TEXT)''')
+            conn.execute('''CREATE TABLE IF NOT EXISTS products 
+                            (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, price TEXT, description TEXT, img_url TEXT)''')
+            if not conn.execute("SELECT * FROM settings").fetchone():
+                conn.execute("INSERT INTO settings (logo_url) VALUES ('https://via.placeholder.com/150')")
+            conn.commit()
+    except Exception as e:
+        print(f"DB Error: {e}")
 
 init_db()
 
@@ -33,7 +36,7 @@ def keep_alive():
             pass
         time.sleep(180)
 
-# --- 3. المتجر الرئيسي (الصفحة الرئيسية) ---
+# --- 3. المتجر الرئيسي ---
 @app.route('/')
 def index():
     with sqlite3.connect(DB_NAME) as conn:
@@ -50,12 +53,11 @@ def index():
         <title>متجري الإلكتروني</title>
         <style>
             :root { --primary: #8A2BE2; --bg: #f4f7f6; }
-            body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); margin: 0; padding: 0; }
+            body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 0; }
             header { background: white; padding: 30px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
             .logo { max-width: 100px; border-radius: 50%; margin-bottom: 10px; }
             .container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 1200px; margin: 40px auto; padding: 0 20px; }
             .card { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; transition: 0.3s; }
-            .card:hover { transform: translateY(-5px); }
             .card img { width: 100%; height: 200px; object-fit: cover; }
             .info { padding: 20px; }
             .price { color: var(--primary); font-weight: bold; font-size: 1.3em; margin: 10px 0; display: block; }
@@ -87,7 +89,7 @@ def index():
     """
     return render_template_string(html_template, logo_url=logo_url, products=products)
 
-# --- 4. لوحة التحكم (Admin Panel) ---
+# --- 4. لوحة التحكم ---
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
     with sqlite3.connect(DB_NAME) as conn:
@@ -103,7 +105,8 @@ def admin():
             return redirect(url_for('admin'))
 
         products = conn.execute("SELECT * FROM products").fetchall()
-        logo = conn.execute("SELECT logo_url FROM settings WHERE id=1").fetchone()[0]
+        logo_res = conn.execute("SELECT logo_url FROM settings WHERE id=1").fetchone()
+        logo = logo_res[0] if logo_res else "https://via.placeholder.com/150"
 
     admin_html = f"""
     <html dir="rtl"><head><meta charset="UTF-8"><style>
@@ -129,14 +132,12 @@ def admin():
         </div>
         <div class="section">
             <h3>المنتجات الحالية</h3>
-            {% for p in products %}
-            <p>{{ p[1] }} - <form method="POST" style="display:inline"><input type="hidden" name="id" value="{{ p[0] }}"><button name="del" style="background:red">حذف</button></form></p>
-            {% endfor %}
+            {''.join([f"<p>{p[1]} - <form method='POST' style='display:inline'><input type='hidden' name='id' value='{p[0]}'><button name='del' style='background:red'>حذف</button></form></p>" for p in products])}
         </div>
         <a href="/">العودة للمتجر</a>
     </body></html>
     """
-    return render_template_string(admin_html, products=products)
+    return render_template_string(admin_html)
 
 if __name__ == "__main__":
     threading.Thread(target=keep_alive, daemon=True).start()
