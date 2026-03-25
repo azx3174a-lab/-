@@ -4,123 +4,87 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    # قائمة الحروف العربية مرتبة
-    arabic_letters = [
+    # الحروف العربية
+    letters = [
         "أ", "ب", "ت", "ث", "ج", "ح", "خ", "د", "ذ", "ر", "ز", "س", "ش", "ص",
         "ض", "ط", "ظ", "ع", "غ", "ف", "ق", "ك", "ل", "م", "ن", "هـ", "و", "ي"
     ]
     
-    # بناء الخلايا السداسية برمجياً
-    # كل حرف يوضع داخل div يحمل كلاس hex لإنشاء الشكل وكلاس hex-content لتموضع الحرف
-    letters_html = "".join([
-        f'<div class="hex"><div class="hex-content">{char}</div></div>' 
-        for char in arabic_letters
-    ])
+    # إنشاء الخلايا
+    cells_html = "".join([f'<div class="hb-item"><span>{l}</span></div>' for l in letters])
 
     html_content = f"""
     <!DOCTYPE html>
     <html dir="rtl" lang="ar">
     <head>
         <meta charset="UTF-8">
-        <title>قرص عسل الحروف العربية</title>
         <style>
             body {{
-                background-color: #4B0082; /* خلفية الصفحة بنفسجي غامق */
-                margin: 0;
+                background-color: #4B0082; /* خلفية بنفسجي غامق */
                 display: flex;
                 justify-content: center;
                 align-items: center;
                 min-height: 100vh;
-                font-family: 'Arial', sans-serif;
-                overflow: hidden; /* لمنع شريط التمرير إذا خرج التصميم قليلاً */
+                margin: 0;
             }}
-
-            /* الحاوية الرئيسية لشبكة قرص العسل */
-            .honeycomb {{
+            .hb-container {{
                 display: flex;
                 flex-wrap: wrap;
-                width: 90%;
-                max-width: 1000px;
-                transform: translateX(-2.5%); /* موازنة الشبكة في المنتصف */
-                padding: 50px 0;
+                width: 600px; /* يمكنك تكبير العرض لزيادة عدد الخلايا في الصف */
+                padding-left: 50px;
             }}
-
-            /* تنسيق الشكل السداسي الأساسي */
-            .hex {{
+            .hb-item {{
                 position: relative;
-                width: 100px; /* عرض الخلية */
-                height: 57.74px; /* الارتفاع المحسوب للشكل السداسي (width * 0.5774) */
-                background-color: #8A2BE2; /* لون الخلية بنفسجي */
-                margin: 28.87px 2px; /* هوامش لضبط التداخل السداسي */
-                border-left: solid 5px white; /* الحدود البيضاء */
-                border-right: solid 5px white;
-                box-sizing: border-box;
+                width: 100px; 
+                height: 115px;
+                background-color: #8A2BE2; /* لون الخلية */
+                margin: 2px;
+                clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 display: flex;
-                align-items: center;
                 justify-content: center;
+                align-items: center;
+                transition: 0.3s;
+                border: 4px solid white; /* حدود بيضاء (تظهر بسبب الـ clip-path كأطراف) */
             }}
-
-            /* المثلثات العلوية والسفلية لإنشاء الشكل السداسي */
-            .hex:before,
-            .hex:after {{
+            /* إضافة إطار أبيض داخلي للمحاكاة */
+            .hb-item::after {{
                 content: "";
                 position: absolute;
+                inset: 5px;
+                background: inherit;
+                clip-path: inherit;
                 z-index: 1;
-                width: 70.71px; /* (100 / sqrt(2)) */
-                height: 70.71px;
-                transform: scaleY(0.5774) rotate(-45deg);
-                background-color: inherit;
-                left: 9.64px; /* (100 - 70.71) / 2 - 5(border)/sqrt(2) approx */
             }}
-
-            .hex:before {{
-                top: -35.36px;
-                border-top: solid 7.07px white; /* حدود علوية بيضاء */
-                border-right: solid 7.07px white;
-            }}
-
-            .hex:after {{
-                bottom: -35.36px;
-                border-bottom: solid 7.07px white; /* حدود سفلية بيضاء */
-                border-left: solid 7.07px white;
-            }}
-
-            /* تنسيق محتوى الحرف داخل الخلية */
-            .hex-content {{
-                position: absolute;
-                z-index: 2; /* لضمان ظهور الحرف فوق المثلثات */
+            .hb-item span {{
+                position: relative;
+                z-index: 2;
                 color: white;
                 font-size: 40px;
                 font-weight: bold;
-                top: -20px; /* تعديل تموضع الحرف رأسياً ليظهر في المنتصف */
+                font-family: Arial;
             }}
-
-            /* تأثير تحريك الصفوف لإنشاء تداخل قرص العسل (Hexagonal Tiling) */
-            /* نطبق الإزاحة على الخلايا بناءً على ترتيبها لإنشاء تداخل بين الصفوف */
-            .honeycomb .hex:nth-child(n+1) {{
-                 /* حسابات معقدة لضبط تموضع كل خلية لتتداخل مع جاراتها */
-            }}
-            
-            /* تبسيط التداخل: نجعل الحاوية flex وعناصرها تترتب برفق، 
-               التداخل الحقيقي يتطلب حسابات دقيقة لكل عنصر أو استخدام CSS Grid متقدم،
-               لذا سنستخدم طريقة أبسط للحصول على مظهر مشابه جداً */
-            
-            .honeycomb {{
+            /* سر التداخل: إزاحة الصفوف الزوجية */
+            .hb-container {{
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-                gap: 5px; /* فجوة صغيرة بين الخلايا */
-                justify-items: center;
+                grid-template-columns: repeat(5, 105px); /* 5 خلايا في كل صف */
+                grid-gap: 5px;
             }}
-            
-            .hex {{
-                margin: 30px 0; /* ضبط الهوامش لتقريب الخلايا رأسياً */
+            .hb-item:nth-child(10n+6), 
+            .hb-item:nth-child(10n+7), 
+            .hb-item:nth-child(10n+8), 
+            .hb-item:nth-child(10n+9), 
+            .hb-item:nth-child(10n+10) {{
+                transform: translateX(55px); /* إزاحة الصف الثاني */
+                margin-top: -30px; /* رفع الصف للأعلى ليحدث التداخل */
             }}
-
+            .hb-item:nth-child(n+6) {{
+                margin-top: -30px; /* تداخل جميع الصفوف بعد الأول */
+            }}
         </style>
     </head>
     <body>
-        <div class="honeycomb">
-            {letters_html}
+        <div class="hb-container">
+            {cells_html}
         </div>
     </body>
     </html>
