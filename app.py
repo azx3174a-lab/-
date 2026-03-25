@@ -4,7 +4,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    # الحروف العربية بنفس الترتيب
+    # الحروف العربية بنفس الترتيب 5، 5، 5، 5، 5، 3
     letters = [
         "أ", "ب", "ت", "ث", "ج",
         "ح", "خ", "د", "ذ", "ر",
@@ -14,9 +14,7 @@ def home():
         "هـ", "و", "ي"
     ]
     
-    # التوزيع: 5، 5، 5، 5، 5، 3
     rows_distribution = [5, 5, 5, 5, 5, 3]
-    
     letters_iter = iter(letters)
     grid_html = ""
     
@@ -53,19 +51,19 @@ def home():
             .hex-row {{
                 display: flex;
                 justify-content: center;
-                margin-top: -24px; /* تداخل رأسي */
+                margin-top: -24px; /* تداخل رأسي لغلق الفراغات */
             }}
             
-            /* إزاحة الصفوف الزوجية (الثاني والرابع والسادس) لليمين بدلاً من اليسار لضبط السطر الأخير */
+            /* إزاحة الصفوف الزوجية لليسار (قيمة سالبة) لتركب في الفراغات */
             .hex-row:nth-child(even) {{
-                transform: translateX(45px); 
+                transform: translateX(-43px); 
             }}
             
             .hex {{
                 width: 80px;
                 height: 92px;
                 background-color: white; /* الإطار الأبيض */
-                margin: 4px;
+                margin: 3px;
                 clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
                 display: flex;
                 justify-content: center;
