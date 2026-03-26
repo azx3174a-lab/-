@@ -10,18 +10,23 @@ import time
 import requests
 
 app = Flask(__name__)
-app.secret_key = "ein_store_v2_key"
+app.secret_key = "ein_store_v3_final"
 DB_NAME = "database.db"
-ADMIN_PASSWORD = "123" 
+ADMIN_PASSWORD = "123" # كلمة المرور
 
+# --- 1. إعداد قاعدة البيانات ---
 def init_db():
     with sqlite3.connect(DB_NAME) as conn:
         conn.execute('''CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY, logo_img_data TEXT)''')
-        conn.execute('''CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, price TEXT, description TEXT, img_data TEXT)''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS products 
+                        (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, price TEXT, description TEXT, img_data TEXT)''')
         if not conn.execute("SELECT * FROM settings").fetchone():
             conn.execute("INSERT INTO settings (logo_img_data) VALUES ('')")
         conn.commit()
 
+init_db()
+
+# --- 2. النغز الذاتي ---
 def keep_alive():
     url = "https://eyin.onrender.com"
     while True:
@@ -29,6 +34,7 @@ def keep_alive():
         except: pass
         time.sleep(180)
 
+# --- 3. المتجر الرئيسي ---
 @app.route('/')
 def index():
     with sqlite3.connect(DB_NAME) as conn:
@@ -47,40 +53,47 @@ def index():
             :root { --primary: #8A2BE2; --bg: #f4f7f6; }
             body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 0; }
             header { background: white; padding: 30px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-            .logo { max-width: 100px; border-radius: 50%; }
+            .logo { max-width: 100px; border-radius: 50%; margin-bottom: 10px; }
             .container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 1200px; margin: 40px auto; padding: 0 20px; }
             .card { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; }
             .card img { width: 100%; height: 200px; object-fit: cover; }
             .info { padding: 20px; }
-            .price { color: var(--primary); font-weight: bold; font-size: 1.2em; }
-            .btn { background: var(--primary); color: white; padding: 10px 25px; border-radius: 25px; text-decoration: none; font-weight: bold; }
+            .price { color: var(--primary); font-weight: bold; font-size: 1.2em; display: block; margin: 10px 0; }
+            .btn { background: var(--primary); color: white; padding: 10px 25px; border-radius: 25px; text-decoration: none; font-weight: bold; display: inline-block; }
         </style>
     </head>
     <body>
-        <header><img src="{{l}}" class="logo"><h1>متجر عين</h1></header>
+        <header>
+            {% if logo_data %}<img src="{{logo_data}}" class="logo">{% endif %}
+            <h1>متجر عين</h1>
+        </header>
         <div class="container">
             {% for p in products %}
             <div class="card">
-                <img src="{{p[4] if p[4] else p[3]}}">
+                <img src="{{ p[3] if p[3] else 'https://via.placeholder.com/300' }}">
                 <div class="info">
-                    <h3>{{p[0]}}</h3><p>{{p[2]}}</p><span class="price">{{p[1]}}</span><br><br>
-                    <a href="https://wa.me/966XXXXXXXXX?text=طلب: {{p[0]}}" class="btn">اطلب واتساب</a>
+                    <h3>{{ p[0] }}</h3>
+                    <p>{{ p[2] }}</p>
+                    <span class="price">{{ p[1] }}</span>
+                    <a href="https://wa.me/966XXXXXXXXX?text=طلب: {{ p[0] }}" class="btn">اطلب واتساب</a>
                 </div>
             </div>
             {% endfor %}
         </div>
     </body></html>
     """
-    return render_template_string(html, l=logo_data, products=products)
+    return render_template_string(html, logo_data=logo_data, products=products)
 
+# --- 4. لوحة التحكم ---
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
     if request.method == 'POST' and 'login_pass' in request.form:
         if request.form['login_pass'] == ADMIN_PASSWORD:
             session['logged_in'] = True
             return redirect(url_for('admin'))
+    
     if not session.get('logged_in'):
-        return '<form method="POST" style="text-align:center;padding-top:100px;"><input type="password" name="login_pass"><button>دخول</button></form>'
+        return '<form method="POST" style="text-align:center;padding-top:100px;"><h2>قفل الإدارة</h2><input type="password" name="login_pass"><button>دخول</button></form>'
 
     with sqlite3.connect(DB_NAME) as conn:
         if request.method == 'POST':
@@ -88,7 +101,8 @@ def admin():
                 file = request.files['img']
                 if file:
                     img_data = f"data:{file.content_type};base64,{base64.b64encode(file.read()).decode('utf-8')}"
-                    conn.execute("INSERT INTO products (name, price, description, img_data) VALUES (?, ?, ?, ?)", (request.form['n'], request.form['p'], request.form['d'], img_data))
+                    conn.execute("INSERT INTO products (name, price, description, img_data) VALUES (?, ?, ?, ?)", 
+                                 (request.form['n'], request.form['p'], request.form['d'], img_data))
             elif 'up_logo' in request.form:
                 file = request.files['logo_img']
                 if file:
@@ -98,10 +112,42 @@ def admin():
                 conn.execute("DELETE FROM products WHERE id = ?", (request.form['id'],))
             conn.commit()
             return redirect(url_for('admin'))
+        
         products = conn.execute("SELECT * FROM products").fetchall()
-    return render_template_string('<html dir="rtl"><body><h2>لوحة التحكم</h2><form method="POST" enctype="multipart/form-data"><h3>شعار المتجر:</h3><input type="file" name="logo_img"><button name="up_logo">تحديث الشعار</button><h3>إضافة منتج:</h3><input name="n" placeholder="الاسم"><input name="p" placeholder="السعر"><textarea name="d"></textarea><input type="file" name="img"><button name="add">حفظ</button></form><hr>{% for p in products %}<p>{{p[1]}} <form method="POST" style="display:inline"><input type="hidden" name="id" value="{{p[0]}}"><button name="del">حذف</button></form></p>{% endfor %}</body></html>', products=products)
+
+    admin_ui = """
+    <html dir="rtl"><body style="font-family:sans-serif; padding:20px; background:#eee;">
+        <div style="background:white; padding:20px; border-radius:10px;">
+            <h2>إدارة متجر عين 👁️</h2>
+            <form method="POST" enctype="multipart/form-data">
+                <h3>1. تحديث الشعار</h3>
+                <input type="file" name="logo_img" accept="image/*">
+                <button name="up_logo">تحديث الشعار</button>
+                <hr>
+                <h3>2. إضافة منتج جديد</h3>
+                <input name="n" placeholder="اسم المنتج" required><br><br>
+                <input name="p" placeholder="السعر" required><br><br>
+                <textarea name="d" placeholder="الوصف"></textarea><br><br>
+                <input type="file" name="img" accept="image/*" required><br><br>
+                <button name="add" style="background:green; color:white;">حفظ المنتج</button>
+            </form>
+            <hr>
+            <h3>3. المنتجات الحالية</h3>
+            {% for p in products %}
+            <div style="border-bottom:1px solid #ddd; padding:10px;">
+                <span>{{p[1]}} - {{p[2]}}</span>
+                <form method="POST" style="display:inline;">
+                    <input type="hidden" name="id" value="{{p[0]}}">
+                    <button name="del" style="background:red; color:white;">حذف</button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        <br><a href="/">العودة للمتجر</a>
+    </body></html>
+    """
+    return render_template_string(admin_ui, products=products)
 
 if __name__ == "__main__":
-    init_db()
     threading.Thread(target=keep_alive, daemon=True).start()
     app.run(host='0.0.0.0', port=8080)
