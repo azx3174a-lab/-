@@ -151,3 +151,30 @@ def admin():
 if __name__ == "__main__":
     threading.Thread(target=keep_alive, daemon=True).start()
     app.run(host='0.0.0.0', port=8080)
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إضافة منتج جديد</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; padding: 50px; }
+        .card { border: 1px solid #ddd; padding: 20px; border-radius: 8px; width: 300px; }
+        input { width: 100%; margin: 10px 0; padding: 8px; box-sizing: border-box; }
+        button { width: 100%; background: #28a745; color: white; border: none; padding: 10px; cursor: pointer; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h3>إضافة منتج جديد 📦</h3>
+    <form>
+        <input type="text" placeholder="اسم المنتج" required>
+        <input type="number" placeholder="السعر (ريال)" required>
+        <input type="file" accept="image/*">
+        <button type="submit">إضافة المنتج</button>
+    </form>
+</div>
+
+</body>
+</html>
