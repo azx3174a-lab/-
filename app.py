@@ -3,44 +3,31 @@ import sys
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 import sqlite3
-import base64
 from flask import Flask, render_template_string, request, redirect, url_for, session
-import threading
-import time
-import requests
 
 app = Flask(__name__)
-app.secret_key = "ein_store_v3_final"
-DB_NAME = "database.db"
-ADMIN_PASSWORD = "123" # كلمة المرور
+app.secret_key = "sub_manager_2026"
+DB_NAME = "subs.db"
+ADMIN_PASSWORD = "123" # كلمة المرور للدخول
 
 # --- 1. إعداد قاعدة البيانات ---
 def init_db():
     with sqlite3.connect(DB_NAME) as conn:
-        conn.execute('''CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY, logo_img_data TEXT)''')
-        conn.execute('''CREATE TABLE IF NOT EXISTS products 
-                        (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, price TEXT, description TEXT, img_data TEXT)''')
-        if not conn.execute("SELECT * FROM settings").fetchone():
-            conn.execute("INSERT INTO settings (logo_img_data) VALUES ('')")
+        conn.execute('''CREATE TABLE IF NOT EXISTS subs 
+                        (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, price REAL, renew_date TEXT)''')
         conn.commit()
 
 init_db()
 
-# --- 2. النغز الذاتي ---
-def keep_alive():
-    url = "https://eyin.onrender.com"
-    while True:
-        try: requests.get(url, timeout=10)
-        except: pass
-        time.sleep(180)
-
-# --- 3. المتجر الرئيسي ---
+# --- 2. الواجهة الرئيسية (عرض الاشتراكات) ---
 @app.route('/')
 def index():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
     with sqlite3.connect(DB_NAME) as conn:
-        logo_res = conn.execute("SELECT logo_img_data FROM settings WHERE id=1").fetchone()
-        logo_data = logo_res[0] if logo_res else ""
-        products = conn.execute("SELECT name, price, description, img_data FROM products").fetchall()
+        subs = conn.execute("SELECT id, name, price, renew_date FROM subs").fetchall()
+        total = conn.execute("SELECT SUM(price) FROM subs").fetchone()[0] or 0
     
     html = """
     <!DOCTYPE html>
@@ -48,106 +35,84 @@ def index():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>متجر عين</title>
+        <title>مدير الاشتراكات 💳</title>
         <style>
-            :root { --primary: #8A2BE2; --bg: #f4f7f6; }
-            body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 0; }
-            header { background: white; padding: 30px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-            .logo { max-width: 100px; border-radius: 50%; margin-bottom: 10px; }
-            .container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 1200px; margin: 40px auto; padding: 0 20px; }
-            .card { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; }
-            .card img { width: 100%; height: 200px; object-fit: cover; }
-            .info { padding: 20px; }
-            .price { color: var(--primary); font-weight: bold; font-size: 1.2em; display: block; margin: 10px 0; }
-            .btn { background: var(--primary); color: white; padding: 10px 25px; border-radius: 25px; text-decoration: none; font-weight: bold; display: inline-block; }
+            body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 20px; text-align: center; }
+            .container { max-width: 600_px; margin: auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+            .total-card { background: #8A2BE2; color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+            .sub-item { display: flex; justify-content: space-between; padding: 15px; border-bottom: 1px solid #eee; align-items: center; }
+            .sub-info { text-align: right; }
+            .price { font-weight: bold; color: #28a745; }
+            .date { font-size: 0.8em; color: #666; }
+            .btn-add { background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 20px; }
+            .btn-del { color: red; text-decoration: none; font-size: 0.9em; border: 1px solid red; padding: 2px 8px; border-radius: 4px; }
         </style>
     </head>
     <body>
-        <header>
-            {% if logo_data %}<img src="{{logo_data}}" class="logo">{% endif %}
-            <h1>متجر عين</h1>
-        </header>
         <div class="container">
-            {% for p in products %}
-            <div class="card">
-                <img src="{{ p[3] if p[3] else 'https://via.placeholder.com/300' }}">
-                <div class="info">
-                    <h3>{{ p[0] }}</h3>
-                    <p>{{ p[2] }}</p>
-                    <span class="price">{{ p[1] }}</span>
-                    <a href="https://wa.me/966XXXXXXXXX?text=طلب: {{ p[0] }}" class="btn">اطلب واتساب</a>
+            <div class="total-card">
+                <h2>إجمالي الاشتراكات</h2>
+                <h1 style="margin:5px 0;">{{total}} ريال/شهر</h1>
+            </div>
+
+            <h3>قائمة الاشتراكات 📋</h3>
+            {% for s in subs %}
+            <div class="sub-item">
+                <div class="sub-info">
+                    <div style="font-weight:bold;">{{s[1]}}</div>
+                    <div class="date">تاريخ التجديد: {{s[3]}}</div>
+                </div>
+                <div>
+                    <span class="price">{{s[2]}} ريال</span>
+                    <a href="/delete/{{s[0]}}" class="btn-del" onclick="return confirm('متأكد؟')">حذف</a>
                 </div>
             </div>
             {% endfor %}
-        </div>
-    </body></html>
-    """
-    return render_template_string(html, logo_data=logo_data, products=products)
 
-# --- 4. لوحة التحكم ---
-@app.route('/admin', methods=['GET', 'POST'])
-def admin():
-    if request.method == 'POST' and 'login_pass' in request.form:
-        if request.form['login_pass'] == ADMIN_PASSWORD:
-            session['logged_in'] = True
-            return redirect(url_for('admin'))
-    
-    if not session.get('logged_in'):
-        return '<form method="POST" style="text-align:center;padding-top:100px;"><h2>قفل الإدارة</h2><input type="password" name="login_pass"><button>دخول</button></form>'
-
-    with sqlite3.connect(DB_NAME) as conn:
-        if request.method == 'POST':
-            if 'add' in request.form:
-                file = request.files['img']
-                if file:
-                    img_data = f"data:{file.content_type};base64,{base64.b64encode(file.read()).decode('utf-8')}"
-                    conn.execute("INSERT INTO products (name, price, description, img_data) VALUES (?, ?, ?, ?)", 
-                                 (request.form['n'], request.form['p'], request.form['d'], img_data))
-            elif 'up_logo' in request.form:
-                file = request.files['logo_img']
-                if file:
-                    logo_data = f"data:{file.content_type};base64,{base64.b64encode(file.read()).decode('utf-8')}"
-                    conn.execute("UPDATE settings SET logo_img_data = ? WHERE id=1", (logo_data,))
-            elif 'del' in request.form:
-                conn.execute("DELETE FROM products WHERE id = ?", (request.form['id'],))
-            conn.commit()
-            return redirect(url_for('admin'))
-        
-        products = conn.execute("SELECT * FROM products").fetchall()
-
-    admin_ui = """
-    <html dir="rtl"><body style="font-family:sans-serif; padding:20px; background:#eee;">
-        <div style="background:white; padding:20px; border-radius:10px;">
-            <h2>إدارة متجر عين 👁️</h2>
-            <form method="POST" enctype="multipart/form-data">
-                <h3>1. تحديث الشعار</h3>
-                <input type="file" name="logo_img" accept="image/*">
-                <button name="up_logo">تحديث الشعار</button>
-                <hr>
-                <h3>2. إضافة منتج جديد</h3>
-                <input name="n" placeholder="اسم المنتج" required><br><br>
-                <input name="p" placeholder="السعر" required><br><br>
-                <textarea name="d" placeholder="الوصف"></textarea><br><br>
-                <input type="file" name="img" accept="image/*" required><br><br>
-                <button name="add" style="background:green; color:white;">حفظ المنتج</button>
-            </form>
             <hr>
-            <h3>3. المنتجات الحالية</h3>
-            {% for p in products %}
-            <div style="border-bottom:1px solid #ddd; padding:10px;">
-                <span>{{p[1]}} - {{p[2]}}</span>
-                <form method="POST" style="display:inline;">
-                    <input type="hidden" name="id" value="{{p[0]}}">
-                    <button name="del" style="background:red; color:white;">حذف</button>
-                </form>
-            </div>
-            {% endfor %}
+            <h4>إضافة اشتراك جديد</h4>
+            <form method="POST" action="/add">
+                <input name="n" placeholder="اسم الاشتراك (مثلاً: نتفليكس)" required style="width:80%; margin:5px; padding:8px;">
+                <input name="p" type="number" step="0.01" placeholder="السعر" required style="width:80%; margin:5px; padding:8px;">
+                <input name="d" type="date" required style="width:80%; margin:5px; padding:8px;">
+                <button style="width:85%; padding:10px; background:#28a745; color:white; border:none; border-radius:5px; margin-top:10px;">إضافة</button>
+            </form>
+            <br>
+            <a href="/logout" style="color:#666; font-size:0.8em;">تسجيل الخروج</a>
         </div>
-        <br><a href="/">العودة للمتجر</a>
     </body></html>
     """
-    return render_template_string(admin_ui, products=products)
+    return render_template_string(html, subs=subs, total=total)
+
+# --- 3. العمليات (إضافة وحذف) ---
+@app.route('/add', methods=['POST'])
+def add():
+    if session.get('logged_in'):
+        with sqlite3.connect(DB_NAME) as conn:
+            conn.execute("INSERT INTO subs (name, price, renew_date) VALUES (?, ?, ?)", 
+                         (request.form['n'], request.form['p'], request.form['d']))
+    return redirect(url_for('index'))
+
+@app.route('/delete/<int:id>')
+def delete(id):
+    if session.get('logged_in'):
+        with sqlite3.connect(DB_NAME) as conn:
+            conn.execute("DELETE FROM subs WHERE id = ?", (id,))
+    return redirect(url_for('index'))
+
+# --- 4. نظام الدخول ---
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        if request.form.get('pass') == ADMIN_PASSWORD:
+            session['logged_in'] = True
+            return redirect(url_for('index'))
+    return '<body style="text-align:center;padding-top:100px;font-family:sans-serif;"><form method="POST"><h2>كلمة مرور المدير</h2><input type="password" name="pass" autofocus><button>دخول</button></form></body>'
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
 
 if __name__ == "__main__":
-    threading.Thread(target=keep_alive, daemon=True).start()
     app.run(host='0.0.0.0', port=8080)
