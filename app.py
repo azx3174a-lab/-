@@ -4,9 +4,9 @@ from PIL import Image
 import io
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # حد أقصى 100 ميجابايت للرفع
+# رفع الحد الأقصى للملفات لـ 200 ميجابايت عشان الـ 100 صورة
+app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024 
 
-# --- واجهة الموقع ---
 html_ui = """
 <!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -15,45 +15,26 @@ html_ui = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>محول الصور الذكي 📸</title>
     <style>
-        body { font-family: sans-serif; background: #f4f7f6; display: flex; justify-content: center; padding: 20px; }
-        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 500px; width: 100%; text-align: center; }
-        h2 { color: #333; }
-        .upload-area { border: 2px dashed #007bff; padding: 30px; border-radius: 15px; margin: 20px 0; cursor: pointer; background: #f8fbff; }
+        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 90%; max-width: 400px; text-align: center; }
+        .upload-btn { background: #007bff; color: white; padding: 15px; border-radius: 10px; display: block; cursor: pointer; margin: 20px 0; font-weight: bold; }
+        .convert-btn { background: #28a745; color: white; border: none; padding: 15px; width: 100%; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 1.1em; }
         input[type="file"] { display: none; }
-        .btn { background: #007bff; color: white; border: none; padding: 12px 25px; border-radius: 10px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1.1em; }
-        .btn:hover { background: #0056b3; }
-        .footer-note { font-size: 0.8em; color: #777; margin-top: 15px; }
-        #file-count { margin-top: 10px; font-weight: bold; color: #28a745; }
+        #status { color: #555; margin-top: 10px; font-size: 0.9em; }
     </style>
 </head>
 <body>
     <div class="card">
         <h2>تحويل الصور إلى PDF 📄</h2>
-        <p>ارفع أي عدد من الصور لدمجها في ملف واحد</p>
-        
         <form action="/convert" method="post" enctype="multipart/form-data">
-            <label class="upload-area" for="images">
-                <span>اضغط هنا لاختيار الصور 📷</span>
-                <input type="file" name="images" id="images" multiple accept="image/*" onchange="updateCount()">
-                <div id="file-count"></div>
+            <label class="upload-btn">
+                اختر الصور (أي عدد) 📷
+                <input type="file" name="images" multiple accept="image/*" onchange="document.getElementById('status').innerText = 'تم اختيار ' + this.files.length + ' صورة'">
             </label>
-            
-            <button type="submit" class="btn">تحويل وتحميل PDF الآن</button>
+            <div id="status">لم يتم اختيار صور بعد</div>
+            <button type="submit" class="convert-btn">تحويل وتحميل الآن ✨</button>
         </form>
-        
-        <div class="footer-note">
-            * يدعم JPG, PNG, WEBP وغيرها.<br>
-            * لا يوجد حد لعدد الصور.
-        </div>
     </div>
-
-    <script>
-        function updateCount() {
-            const input = document.getElementById('images');
-            const countDiv = document.getElementById('file-count');
-            countDiv.innerText = "تم اختيار " + input.files.length + " صورة";
-        }
-    </script>
 </body>
 </html>
 """
@@ -66,24 +47,26 @@ def index():
 def convert():
     files = request.files.getlist('images')
     if not files or files[0].filename == '':
-        return "يرجى اختيار صور أولاً!", 400
+        return "الرجاء اختيار ملفات!", 400
 
     image_list = []
-    
     for file in files:
-        img = Image.open(file)
-        # تحويل الصورة إلى RGB (ضروري لملفات PDF)
-        if img.mode in ("RGBA", "P"):
-            img = img.convert("RGB")
-        image_list.append(img)
+        try:
+            img = Image.open(file)
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+            image_list.append(img)
+        except:
+            continue
 
-    # إنشاء ملف PDF في الذاكرة
+    if not image_list:
+        return "خطأ في معالجة الصور!", 400
+
     pdf_io = io.BytesIO()
-    if image_list:
-        image_list[0].save(pdf_io, format="PDF", save_all=True, append_images=image_list[1:])
-        pdf_io.seek(0)
-        
-    return send_file(pdf_io, mimetype='application/pdf', as_attachment=True, download_name='converted_images.pdf')
+    image_list[0].save(pdf_io, format="PDF", save_all=True, append_images=image_list[1:])
+    pdf_io.seek(0)
+    
+    return send_file(pdf_io, mimetype='application/pdf', as_attachment=True, download_name='my_document.pdf')
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8080)
