@@ -1,97 +1,142 @@
-from flask import Flask, render_template_string, request
+import sqlite3
+from flask import Flask, render_template_string, request, redirect, url_for, session
 
 app = Flask(__name__)
+app.secret_key = "admin_secret_key_123" # غير المفتاح السري هنا
+ADMIN_PASS = "1234" # كلمة مرور لوحة التحكم
 
-# --- واجهة تصميم الاختبار ---
-# ملاحظة: جعلت التصميم أنيقاً وسهلاً للاستخدام من الجوال
-html_ui = """
-<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منصة الاختبارات الذكية 📝</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f9; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
-        h2 { text-align: center; color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        .question-block { margin-bottom: 25px; padding: 15px; border: 1px solid #f0f0f0; border-radius: 10px; }
-        label { display: block; font-weight: bold; margin-bottom: 10px; font-size: 1.1em; }
-        input[type="text"], textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        .options { margin-top: 10px; }
-        .option-item { margin-bottom: 8px; display: flex; align-items: center; }
-        input[type="radio"], input[type="checkbox"] { margin-left: 10px; transform: scale(1.2); }
-        .submit-btn { background: #3498db; color: white; border: none; padding: 15px; width: 100%; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 1.2em; transition: 0.3s; }
-        .submit-btn:hover { background: #2980b9; }
-        .result-card { background: #e8f6f3; padding: 20px; border-radius: 10px; border-right: 5px solid #27ae60; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>نموذج اختبار تجريبي 📝</h2>
-        
-        <form action="/submit" method="post">
-            <div class="question-block">
-                <label>1. ما هو اسمك الكريم؟ (إجابة قصيرة)</label>
-                <input type="text" name="user_name" placeholder="اكتب اسمك هنا..." required>
-            </div>
+DB_NAME = "questions.db"
 
-            <div class="question-block">
-                <label>2. تحدث عن طموحك في تعلم البرمجة؟ (إجابة طويلة)</label>
-                <textarea name="user_bio" rows="4" placeholder="اكتب بالتفصيل..."></textarea>
-            </div>
+# --- إعداد قاعدة البيانات ---
+def init_db():
+    with sqlite3.connect(DB_NAME) as conn:
+        # جدول الأسئلة
+        conn.execute('''CREATE TABLE IF NOT EXISTS questions 
+                        (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                         q_text TEXT, 
+                         q_type TEXT, 
+                         q_options TEXT)''')
+        # جدول الإجابات المستلمة من الناس
+        conn.execute('''CREATE TABLE IF NOT EXISTS answers 
+                        (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                         ans_data TEXT, 
+                         submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    conn.commit()
 
-            <div class="question-block">
-                <label>3. ما هو فريقك المفضل في DLS؟ (اختيار واحد)</label>
-                <div class="options">
-                    <div class="option-item"><input type="radio" name="fav_team" value="الهلال" required> الهلال</div>
-                    <div class="option-item"><input type="radio" name="fav_team" value="النصر"> النصر</div>
-                    <div class="option-item"><input type="radio" name="fav_team" value="الاتحاد"> الاتحاد</div>
-                </div>
-            </div>
+init_db()
 
-            <div class="question-block">
-                <label>4. ما هي لغات البرمجة التي تود تعلمها؟ (اختيارات متعددة)</label>
-                <div class="options">
-                    <div class="option-item"><input type="checkbox" name="langs" value="Python"> Python</div>
-                    <div class="option-item"><input type="checkbox" name="langs" value="HTML/CSS"> HTML/CSS</div>
-                    <div class="option-item"><input type="checkbox" name="langs" value="JavaScript"> JavaScript</div>
-                </div>
-            </div>
+# --- التصاميم (HTML) ---
 
-            <button type="submit" class="submit-btn">إرسال الإجابات ✅</button>
-        </form>
+# واجهة لوحة التحكم
+ADMIN_HTML = """
+<div dir="rtl" style="font-family:sans-serif; max-width:600_px; margin:auto; padding:20px;">
+    <h2>لوحة تحكم الأسئلة ⚙️</h2>
+    <form method="POST" action="/admin/add">
+        <input name="q_text" placeholder="اكتب نص السؤال هنا" required style="width:100%; padding:10px; margin-bottom:10px;">
+        <select name="q_type" style="width:100%; padding:10px; margin-bottom:10px;">
+            <option value="text">إجابة نصية (قصيرة)</option>
+            <option value="textarea">إجابة نصية (طويلة)</option>
+            <option value="radio">اختيار واحد فقط</option>
+            <option value="checkbox">خيارات متعددة</option>
+        </select>
+        <input name="q_options" placeholder="الخيارات (افصل بينها بفاصلة ,) اتركها فارغة للنص" style="width:100%; padding:10px; margin-bottom:10px;">
+        <button style="width:100%; padding:10px; background:#2ecc71; color:white; border:none; cursor:pointer;">إضافة السؤال +</button>
+    </form>
+    <hr>
+    <h3>الأسئلة الحالية:</h3>
+    {% for q in questions %}
+    <div style="background:#f9f9f9; padding:10px; margin-bottom:5px; border-right:4px solid #3498db;">
+        <b>{{ q[1] }}</b> ({{ q[2] }}) 
+        <a href="/admin/delete/{{ q[0] }}" style="color:red; float:left; text-decoration:none;">حذف</a>
     </div>
-</body>
-</html>
+    {% endfor %}
+    <br><a href="/">العودة للموقع الرئيسي</a> | <a href="/admin/responses">رؤية الإجابات المستلمة</a>
+</div>
 """
+
+# واجهة الموقع للناس
+USER_HTML = """
+<div dir="rtl" style="font-family:sans-serif; max-width:600_px; margin:auto; padding:20px;">
+    <h2 style="text-align:center;">نموذج الأسئلة 📝</h2>
+    <form method="POST" action="/submit">
+        {% for q in questions %}
+        <div style="margin-bottom:20px; padding:15px; border:1px solid #eee; border-radius:10px;">
+            <label style="display:block; font-weight:bold; margin-bottom:10px;">{{ q[1] }}</label>
+            
+            {% if q[2] == 'text' %}
+                <input type="text" name="q_{{ q[0] }}" style="width:100%; padding:8px;">
+            {% elif q[2] == 'textarea' %}
+                <textarea name="q_{{ q[0] }}" style="width:100%; padding:8px;" rows="3"></textarea>
+            {% elif q[2] == 'radio' %}
+                {% for opt in q[3].split(',') %}
+                <label><input type="radio" name="q_{{ q[0] }}" value="{{ opt.strip() }}"> {{ opt.strip() }}</label><br>
+                {% endfor %}
+            {% elif q[2] == 'checkbox' %}
+                {% for opt in q[3].split(',') %}
+                <label><input type="checkbox" name="q_{{ q[0] }}" value="{{ opt.strip() }}"> {{ opt.strip() }}</label><br>
+                {% endfor %}
+            {% endif %}
+        </div>
+        {% endfor %}
+        <button style="width:100%; padding:15px; background:#3498db; color:white; border:none; border-radius:10px; cursor:pointer;">إرسال الإجابات ✅</button>
+    </form>
+    <hr>
+    <center><a href="/admin" style="color:#ccc; text-decoration:none; font-size:0.8em;">دخول الإدارة</a></center>
+</div>
+"""
+
+# --- المسارات (Routes) ---
 
 @app.route('/')
 def index():
-    return render_template_string(html_ui)
+    with sqlite3.connect(DB_NAME) as conn:
+        questions = conn.execute("SELECT * FROM questions").fetchall()
+    return render_template_string(USER_HTML, questions=questions)
+
+@app.route('/admin', methods=['GET', 'POST'])
+def admin():
+    if request.method == 'POST':
+        if request.form.get('pass') == ADMIN_PASS:
+            session['logged_in'] = True
+            return redirect(url_for('admin'))
+    
+    if not session.get('logged_in'):
+        return '<div dir="rtl" style="text-align:center; padding-top:100px;"><h2>دخول الإدارة</h2><form method="POST"><input type="password" name="pass" placeholder="كلمة المرور"><button>دخول</button></form></div>'
+    
+    with sqlite3.connect(DB_NAME) as conn:
+        questions = conn.execute("SELECT * FROM questions").fetchall()
+    return render_template_string(ADMIN_HTML, questions=questions)
+
+@app.route('/admin/add', methods=['POST'])
+def add_question():
+    if session.get('logged_in'):
+        q_text = request.form.get('q_text')
+        q_type = request.form.get('q_type')
+        q_options = request.form.get('q_options')
+        with sqlite3.connect(DB_NAME) as conn:
+            conn.execute("INSERT INTO questions (q_text, q_type, q_options) VALUES (?, ?, ?)", (q_text, q_type, q_options))
+    return redirect(url_for('admin'))
+
+@app.route('/admin/delete/<int:id>')
+def delete_question(id):
+    if session.get('logged_in'):
+        with sqlite3.connect(DB_NAME) as conn:
+            conn.execute("DELETE FROM questions WHERE id = ?", (id,))
+    return redirect(url_for('admin'))
 
 @app.route('/submit', methods=['POST'])
-def submit():
-    # استلام البيانات
-    name = request.form.get('user_name')
-    bio = request.form.get('user_bio')
-    team = request.form.get('fav_team')
-    langs = request.form.getlist('langs') # getlist تستخدم لجلب أكثر من قيمة من الـ Checkbox
+def submit_answers():
+    ans_data = str(request.form.to_dict(flat=False))
+    with sqlite3.connect(DB_NAME) as conn:
+        conn.execute("INSERT INTO answers (ans_data) VALUES (?)", (ans_data,))
+    return '<div dir="rtl" style="text-align:center; padding-top:100px;"><h2>شكراً لك! تم استلام إجاباتك بنجاح. 🎉</h2><a href="/">العودة</a></div>'
 
-    # واجهة عرض النتائج
-    result_html = f"""
-    <div dir="rtl" style="font-family:sans-serif; max-width:500px; margin:50px auto; padding:20px; border:1px solid #ccc; border-radius:15px;">
-        <h2 style="color:#27ae60;">تم استلام إجاباتك بنجاح! 🎉</h2>
-        <hr>
-        <p><b>الاسم:</b> {name}</p>
-        <p><b>الطموح:</b> {bio}</p>
-        <p><b>الفريق المفضل:</b> {team}</p>
-        <p><b>اللغات المختارة:</b> {', '.join(langs) if langs else 'لم يتم اختيار شيء'}</p>
-        <br>
-        <a href="/" style="text-decoration:none; color:#3498db;">العودة للاختبار</a>
-    </div>
-    """
-    return result_html
+@app.route('/admin/responses')
+def view_responses():
+    if not session.get('logged_in'): return redirect(url_for('admin'))
+    with sqlite3.connect(DB_NAME) as conn:
+        responses = conn.execute("SELECT * FROM answers ORDER BY id DESC").fetchall()
+    return f'<div dir="rtl" style="font-family:sans-serif; padding:20px;"><h2>الإجابات المستلمة 📋</h2><pre>{str(responses)}</pre><br><a href="/admin">العودة</a></div>'
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8080)
