@@ -3,47 +3,47 @@ from flask_mail import Mail, Message
 import random
 
 app = Flask(__name__)
-app.secret_key = 'super-secret-key'
+app.secret_key = 'some_secret_key'
 
-# --- إعدادات الإيميل المرسل (حط بياناتك هنا عشان النظام يرسل للناس) ---
+# --- إعدادات الإيميل ---
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'azx3174@gmail.com' # إيميلك اللي بيرسل للناس
-app.config['MAIL_PASSWORD'] = 'fldnzsuiguxsajux' # الرمز الـ 16 حرف اللي بتجيبه من جوجل
+app.config['MAIL_USERNAME'] = 'azx3174a@gmail.com'
+app.config['MAIL_PASSWORD'] = 'iymffmyvwijjmdqt'
 mail = Mail(app)
 
-# --- واجهة تسجيل الدخول ---
-login_page = '''
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل دخول</title>
-    <style>
-        body { font-family: sans-serif; background: #f0f2f5; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; width: 85%; max-width: 350px; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; text-align: center; }
-        button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h3>مرحباً بك</h3>
-        <form method="POST">
-            {% if not otp_sent %}
-                <p>أدخل إيميلك ليصلك رمز التحقق</p>
-                <input type="email" name="user_email" placeholder="email@example.com" required>
-                <button type="submit" name="step" value="send">إرسال الرمز</button>
-            {% else %}
-                <p>تم إرسال الرمز إلى إيميلك</p>
-                <input type="text" name="otp" placeholder="أدخل الرمز المكون من 6 أرقام" required>
-                <button type="submit" name="step" value="verify">دخول</button>
-            {% endif %}
-        </form>
-    </div>
-</body>
-</html>
-'''
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    otp_sent = session.get('otp_sent', False)
+    if request.method == 'POST':
+        step = request.form.get('step')
+        if step == 'send':
+            email = request.form.get('email')
+            otp = str(random.randint(100000, 999999))
+            session['otp'] = otp
+            try:
+                msg = Message('رمز التحقق', sender=app.config['MAIL_USERNAME'], recipients=[email])
+                msg.body = f'رمزك هو: {otp}'
+                mail.send(msg)
+                session['otp_sent'] = True
+                return render_template_string(login_html, otp_sent=True)
+            except Exception as e:
+                return f"خطأ في الإرسال: تأكد من الـ 16 حرف والإيميل. الخطأ: {e}"
+        
+        elif step == 'verify':
+            if request.form.get('otp') == session.get('otp'):
+                session['auth'] = True
+                return redirect(url_for('index'))
+            return "الرمز خطأ!"
+    return render_template_string(login_html, otp_sent=otp_sent)
 
-# (باقي كود صفحة التقييم والراوتات هو نفسه اللي فوق)
+@app.route('/')
+def index():
+    if not session.get('auth'): return redirect(url_for('login'))
+    return render_template_string(rating_html)
+
+# --- هنا تضع أكواد الـ HTML (login_html و rating_html) اللي أعطيتك إياها سابقاً ---
+
+if __name__ == '__main__':
+    app.run()
