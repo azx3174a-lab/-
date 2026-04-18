@@ -1,28 +1,38 @@
-from flask import Flask, render_template_string, request, session, redirect, url_for
+from flask import Flask, render_template_string, request, session, redirect, url_for, send_from_directory
 from flask_mail import Mail, Message
 import random
 import re
+import os
 
 app = Flask(__name__)
-app.secret_key = 'secure_key_99'
+app.secret_key = 'super_secret_key_2026'
 
-# --- إعدادات الإيميل (تأكد من بياناتك هنا) ---
+# --- إعدادات الإيميل (تأكد من وضع بياناتك الصحيحة) ---
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'azx3174a@gmail.com' 
-app.config['MAIL_PASSWORD'] = 'iymffmyvwijjmdqt'    
+app.config['MAIL_USERNAME'] = 'your-email@gmail.com' 
+app.config['MAIL_PASSWORD'] = 'your-app-password'    
 mail = Mail(app)
 
+# قاعدة بيانات مؤقتة (ستحذف عند ريستارت السيرفر)
 users_db = {} 
 
+# دالة التحقق من قوة كلمة المرور
 def is_strong_pass(password):
     if len(password) < 6: return False
     has_upper = re.search(r'[A-Z]', password)
     has_symbol = re.search(r'[!@#$%^&*(),.?":{}|<>]', password)
     return has_upper and has_symbol
 
-common_style = '''
+# --- الستايل الموحد والـ Meta Tags لدعم التطبيق ---
+# أضفنا "theme-color" و "mobile-web-app-capable" عشان يظهر كتطبيق حقيقي
+common_head = '''
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#222222">
+<link rel="manifest" href="/static/manifest.json">
 <style>
     body { font-family: sans-serif; background: #f0f2f5; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; direction: rtl; }
     .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; width: 85%; max-width: 350px; }
@@ -33,7 +43,8 @@ common_style = '''
 </style>
 '''
 
-login_html = common_style + '''
+# --- الصفحات ---
+login_html = common_head + '''
 <div class="card">
     <h3>تسجيل الدخول</h3>
     <form method="POST">
@@ -46,7 +57,7 @@ login_html = common_style + '''
 </div>
 '''
 
-register_html = common_style + '''
+register_html = common_head + '''
 <div class="card">
     <h3>إنشاء حساب جديد</h3>
     <form method="POST">
@@ -65,16 +76,18 @@ register_html = common_style + '''
 </div>
 '''
 
-# --- كود صفحة التقييم (اللايكات السوداء) ---
 rating_html = '''
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#1e1e1e">
     <title>منصة التقييم</title>
     <style>
         body { font-family: sans-serif; background-color: #f4f6f9; margin: 0; padding: 5px; display: block; height: auto; }
-        .main-container { display: flex; flex-direction: row; justify-content: space-between; gap: 8px; width: 100%; max-width: 600px; margin: 0 auto; }
+        .main-container { display: flex; flex-direction: row; justify-content: space-between; gap: 8px; width: 100%; max-width: 600px; margin: 0 auto; padding-top: 10px; }
         .column { background: white; padding: 10px 0; border-radius: 12px; width: 49%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         h2 { text-align: center; font-size: 13px; background: #1e1e1e; color: white; padding: 8px; border-radius: 8px; margin: 0 5px 12px 5px; }
         .row { display: flex; align-items: center; justify-content: space-around; margin-bottom: 6px; padding: 2px 0; }
@@ -107,6 +120,17 @@ rating_html = '''
 </html>
 '''
 
+# --- المسارات (Routes) ---
+
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    return send_from_directory('static', filename)
+
+@app.route('/')
+def index():
+    if not session.get('auth'): return redirect(url_for('login'))
+    return render_template_string(rating_html)
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -118,14 +142,14 @@ def register():
                 return render_template_string(register_html, error="كلمة المرور ضعيفة! (حرف كبير + رمز)")
             otp = str(random.randint(100000, 999999))
             session['reg_data'] = {'email': email, 'password': password, 'otp': otp}
-            msg = Message('رمز تحقق التسجيل', sender=app.config['MAIL_USERNAME'], recipients=[email])
+            msg = Message('رمز التحقق', sender=app.config['MAIL_USERNAME'], recipients=[email])
             msg.body = f'رمزك هو: {otp}'
             mail.send(msg)
             return render_template_string(register_html, otp_sent=True)
         elif action == 'verify_reg':
             if request.form.get('otp') == session.get('reg_data')['otp']:
                 users_db[session['reg_data']['email']] = session['reg_data']['password']
-                return "تم التسجيل! <a href='/login'>ادخل هنا</a>"
+                return "تم إنشاء الحساب! <a href='/login'>اضغط هنا للدخول</a>"
     return render_template_string(register_html)
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -136,13 +160,8 @@ def login():
         if email in users_db and users_db[email] == password:
             session['auth'] = True
             return redirect(url_for('index'))
-        return render_template_string(login_html, error="بيانات خطأ")
+        return render_template_string(login_html, error="البيانات خاطئة")
     return render_template_string(login_html)
-
-@app.route('/')
-def index():
-    if not session.get('auth'): return redirect(url_for('login'))
-    return render_template_string(rating_html)
 
 @app.route('/logout')
 def logout():
