@@ -3,7 +3,7 @@ from models import db, User, Settings
 
 admin_bp = Blueprint('admin', __name__)
 
-@admin_bp.route('/admin', methods=['GET', 'POST'])
+@admin_bp.route('/') # شلنا كلمة admin من هنا لأنها موجودة في app.py
 def dashboard():
     if not session.get('is_admin'): return "غير مسموح لك", 403
     
@@ -11,16 +11,17 @@ def dashboard():
     if request.method == 'POST':
         settings.app_icon_url = request.form['icon_url']
         db.session.commit()
-        return "تم تحديث الأيقونة بنجاح! <a href='/admin'>عودة</a>"
+        return "تم تحديث الأيقونة! <a href='/admin/'>عودة</a>"
     
     users_count = User.query.count()
     return render_template_string('''
         <div style="direction:rtl; text-align:center; padding:20px; font-family:sans-serif;">
             <h2>لوحة تحكم المسؤول 🛠️</h2>
             <p>عدد المستخدمين: {{ count }}</p>
-            <form method="POST">
-                <input name="icon_url" value="{{ icon }}" style="width:80%; padding:10px;">
-                <button type="submit" style="padding:10px 20px;">تحديث الأيقونة</button>
+            <form method="POST" action="/admin/">
+                <label>رابط الأيقونة الجديد:</label><br>
+                <input name="icon_url" value="{{ icon }}" style="width:80%; padding:10px; margin-top:10px;">
+                <button type="submit" style="padding:10px 20px; margin-top:10px;">تحديث</button>
             </form>
             <br><a href="/">العودة للرئيسية</a>
         </div>
