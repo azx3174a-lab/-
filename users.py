@@ -5,30 +5,30 @@ users_bp = Blueprint('users', __name__)
 
 @users_bp.route('/')
 def index():
-    if 'user_id' not in session: return redirect(url_for('login'))
+    if 'user_id' not in session:
+        return redirect('/login')
+    
+    # جلب اشتراكات المستخدم الحالي
     subs = Subscription.query.filter_by(user_id=session['user_id']).all()
+    
     return render_template_string('''
-        <div style="direction:rtl; padding:20px; font-family:sans-serif;">
-            <h3>اشتراكاتي 💳</h3>
-            <ul>
-                {% for sub in subs %}
-                <li>{{ sub.service_name }} - {{ sub.price }} ريال (ينتهي: {{ sub.expiry_date }})</li>
-                {% endfor %}
-            </ul>
-            <form action="/add_sub" method="POST">
-                <input name="name" placeholder="الخدمة" required>
-                <input name="price" type="number" placeholder="السعر" required>
-                <input name="date" type="date" required>
-                <button type="submit">إضافة</button>
-            </form>
-            <br><a href="/logout">خروج</a>
+        <div style="direction:rtl; padding:20px; font-family:sans-serif; text-align:center;">
+            <h1>أهلاً بك في تطبيق الاشتراكات 👋</h1>
+            <div style="background:#eee; padding:15px; border-radius:10px; margin-bottom:20px;">
+                <h3>قائمة اشتراكاتك:</h3>
+                {% if not subs %} <p>لا توجد اشتراكات حالياً.</p> {% endif %}
+                <ul style="list-style:none; padding:0;">
+                    {% for sub in subs %}
+                    <li style="background:#fff; margin:5px; padding:10px; border-radius:5px;">
+                        {{ sub.service_name }} - {{ sub.price }} ريال
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <a href="/logout" style="color:red;">تسجيل خروج</a>
+            {% if session.get('is_admin') %}
+            <br><br>
+            <a href="/admin/" style="background:gold; padding:10px; border-radius:5px; text-decoration:none; color:#000;">دخلت بصفتك مدير: اذهب للوحة التحكم</a>
+            {% endif %}
         </div>
     ''', subs=subs)
-
-@users_bp.route('/add_sub', methods=['POST'])
-def add_sub():
-    new_sub = Subscription(user_id=session['user_id'], service_name=request.form['name'],
-                           price=request.form['price'], expiry_date=request.form['date'])
-    db.session.add(new_sub)
-    db.session.commit()
-    return redirect(url_for('users.index'))
