@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from ..database import get_db
-from ..models.product import Product
+from app.database import get_db
+from app.models.product import Product
 from pydantic import BaseModel
 from typing import Optional
 
@@ -10,7 +10,6 @@ router = APIRouter(
     tags=["Products"]
 )
 
-# نماذج Pydantic للتحقق من البيانات المدخلة (Schemas)
 class ProductCreate(BaseModel):
     title: str
     description: Optional[str] = None
@@ -18,7 +17,6 @@ class ProductCreate(BaseModel):
     stock: int = 0
     image_url: Optional[str] = None
 
-# 1. رابط لإضافة منتج جديد للمتجر
 @router.post("/")
 def create_product(product: ProductCreate, db: Session = Depends(get_db)):
     db_product = Product(
@@ -33,7 +31,6 @@ def create_product(product: ProductCreate, db: Session = Depends(get_db)):
     db.refresh(db_product)
     return {"message": "تم إضافة المنتج بنجاح!", "product": db_product}
 
-# 2. رابط لعرض جميع المنتجات في المتجر
 @router.get("/")
 def get_all_products(db: Session = Depends(get_db)):
     products = db.query(Product).all()
