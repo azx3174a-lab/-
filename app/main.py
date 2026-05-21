@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import Column
 
 app = FastAPI(
     title="Eyin Store API",
