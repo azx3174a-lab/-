@@ -1,4 +1,4 @@
-from fastapi import Column
+from sqlalchemy import Column, Integer, ForeignKey, Float, DateTime, String
 
 app = FastAPI(
     title="Eyin Store API",
