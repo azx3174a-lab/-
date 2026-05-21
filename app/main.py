@@ -1,9 +1,10 @@
 from fastapi import FastAPI
 from app.database import engine, Base
-# استيراد الموديلات (الجداول) لتنبيه SQLAlchemy بوجودها
 from app.models import user, product, order 
+# استيراد موديل المنتجات الجديد
+from app.routers import products
 
-# أمر سحري: يمر على كل الموديلات وينشئ الجداول في قاعدة البيانات إذا لم تكن موجودة
+# أمر إنشاء الجداول تلقائياً في قاعدة البيانات عند تشغيل السيرفر
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -12,10 +13,13 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# رابط ترحيبي للتأكد من تشغيل السيرفر
+# ربط روابط المنتجات بالسيرفر الرئيسي
+app.include_router(products.router)
+
+# الرابط الرئيسي والترحيبي للمتجر
 @app.get("/")
 def read_root():
     return {
         "status": "online",
-        "message": "مرحباً بك في متجر Eyin الإلكتروني! قاعدة البيانات والجداول جاهزة للعمل."
+        "message": "مرحباً بك في متجر Eyin الإلكتروني! قاعدة البيانات والروابط جاهزة للعمل بنجاح."
     }
