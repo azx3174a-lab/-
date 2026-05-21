@@ -1,7 +1,7 @@
 from fastapi import FastAPI
-from .database import engine, Base
-from .models import user, product, order 
-from .routers import products
+from app.database import engine, Base
+from app.models import user, product, order 
+from app.routers import products
 
 # إنشاء الجداول تلقائياً
 Base.metadata.create_all(bind=engine)
