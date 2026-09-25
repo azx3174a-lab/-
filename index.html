@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>عين | بطاقات NFC</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- الهيدر -->
+    <header class="header">
+
+        <div class="logo">
+            عين
+        </div>
+
+        <nav>
+            <a href="#home">الرئيسية</a>
+            <a href="#products">المنتجات</a>
+            <a href="#about">عن عين</a>
+        </nav>
+
+        <button class="cart-button" onclick="openCart()">
+            🛒 السلة
+            <span id="cart-count">0</span>
+        </button>
+
+    </header>
+
+
+    <!-- الرئيسية -->
+    <main>
+
+        <section id="home" class="hero">
+
+            <div class="hero-content">
+
+                <h1>
+                    بطاقتك تبدأ من هنا
+                </h1>
+
+                <p>
+                    بطاقات NFC ذكية بتصميم أنيق وسهولة في الاستخدام.
+                </p>
+
+                <a href="#products" class="hero-button">
+                    تسوق الآن
+                </a>
+
+            </div>
+
+        </section>
+
+
+        <!-- المنتجات -->
+        <section id="products" class="products-section">
+
+            <h2>
+                منتجاتنا
+            </h2>
+
+            <p class="section-description">
+                اختر بطاقة NFC المناسبة لك
+            </p>
+
+            <div id="products-container" class="products-grid">
+
+                <!-- المنتجات ستظهر هنا عن طريق JavaScript -->
+
+            </div>
+
+        </section>
+
+
+        <!-- عن المتجر -->
+        <section id="about" class="about">
+
+            <h2>
+                عن عين
+            </h2>
+
+            <p>
+                متجر عين متخصص في تقديم بطاقات NFC بطريقة عصرية
+                وسهلة الاستخدام.
+            </p>
+
+        </section>
+
+    </main>
+
+
+    <!-- نافذة السلة -->
+    <div id="cart-modal" class="modal">
+
+        <div class="cart-box">
+
+            <button class="close-button" onclick="closeCart()">
+                ×
+            </button>
+
+            <h2>
+                سلة المشتريات
+            </h2>
+
+            <div id="cart-items">
+                السلة فارغة
+            </div>
+
+            <div class="cart-total">
+
+                الإجمالي:
+                <span id="cart-total">
+                    0
+                </span>
+                ريال
+
+            </div>
+
+            <button class="checkout-button">
+                إتمام الطلب
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <footer>
+
+        <p>
+            © 2026 عين - جميع الحقوق محفوظة
+        </p>
+
+    </footer>
+
+
+    <script src="script.js"></script>
+
+</body>
+</html>
